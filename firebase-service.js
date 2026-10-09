@@ -39,35 +39,26 @@ class GarbaFirebaseService {
   }
 
   /**
-   * Triggers Google Sign-In popup with robust error diagnosis
+   * Registers a user with Email & Password in Firebase Auth
    */
-  async signInWithGoogle() {
+  async signUpWithEmailPassword(email, password) {
     if (!this.isInitialized && !this.init()) {
-      throw new Error('Firebase configuration is missing! Please paste your Firebase keys in Database Settings.');
+      return null;
     }
+    const userCredential = await this.auth.createUserWithEmailAndPassword(email, password);
+    return userCredential.user;
+  }
 
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('profile');
-    provider.addScope('email');
-    provider.setCustomParameters({ prompt: 'select_account' });
-
-    let result;
-    try {
-      result = await this.auth.signInWithPopup(provider);
-    } catch (popupErr) {
-      if (popupErr.code === 'auth/popup-blocked') {
-        console.warn('Popup blocked, attempting redirect fallback...');
-        await this.auth.signInWithRedirect(provider);
-        return null;
-      }
-      throw popupErr;
+  /**
+   * Signs in a user with Email & Password in Firebase Auth
+   */
+  async signInWithEmailPassword(email, password) {
+    if (!this.isInitialized && !this.init()) {
+      return null;
     }
-
-    const user = result.user;
-
-    // Check if user profile already exists in Firestore
+    const userCredential = await this.auth.signInWithEmailAndPassword(email, password);
+    const user = userCredential.user;
     const userDoc = await this.db.collection('users').doc(user.uid).get();
-    
     return {
       firebaseUser: user,
       profileExists: userDoc.exists,
