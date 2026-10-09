@@ -39,18 +39,30 @@ class GarbaFirebaseService {
   }
 
   /**
-   * Triggers Google Sign-In popup
+   * Triggers Google Sign-In popup with robust error diagnosis
    */
   async signInWithGoogle() {
     if (!this.isInitialized && !this.init()) {
-      throw new Error('Firebase is not configured. Please enter your Firebase config keys.');
+      throw new Error('Firebase configuration is missing! Please paste your Firebase keys in Database Settings.');
     }
 
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.addScope('profile');
     provider.addScope('email');
+    provider.setCustomParameters({ prompt: 'select_account' });
 
-    const result = await this.auth.signInWithPopup(provider);
+    let result;
+    try {
+      result = await this.auth.signInWithPopup(provider);
+    } catch (popupErr) {
+      if (popupErr.code === 'auth/popup-blocked') {
+        console.warn('Popup blocked, attempting redirect fallback...');
+        await this.auth.signInWithRedirect(provider);
+        return null;
+      }
+      throw popupErr;
+    }
+
     const user = result.user;
 
     // Check if user profile already exists in Firestore
