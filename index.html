@@ -9,6 +9,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&family=Noto+Sans+Gujarati:wght@400;700&display=swap" rel="stylesheet" />
+  
+  <!-- Firebase SDK (v10 compat) for Google Auth & Real-time Cloud Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -22,10 +27,20 @@
       <p class="logo-tagline">ગરબા પાર્ટનર શોધો • Find Your Garba Partner</p>
     </div>
     <div class="splash-actions">
+      <button class="btn btn-google btn-lg" onclick="handleGoogleSignIn()">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+        Continue with Google
+      </button>
+      <div class="auth-divider">or explore</div>
       <button class="btn btn-primary btn-lg" onclick="showScreen('register')">Create Profile</button>
-      <button class="btn btn-outline btn-lg" onclick="showScreen('login')">Sign In</button>
+      <button class="btn btn-outline btn-lg" onclick="demoLogin()">Try Demo (Guest)</button>
     </div>
-    <p class="splash-note">🎉 Navratri 2025 – 5,000+ dancers near you!</p>
+    <div style="text-align:center;">
+      <button class="cloud-status-pill" id="splash-cloud-pill" onclick="openFirebaseConfigModal()" title="Database Setup">
+        <span class="status-dot"></span> <span id="splash-cloud-status">Database Settings</span>
+      </button>
+    </div>
+    <p class="splash-note">🎉 Navratri 2025 – Find real dancers near you!</p>
   </div>
   <div class="floating-emojis">
     <span style="--delay:0s;--x:10%;--size:2rem">🪔</span>
@@ -47,6 +62,11 @@
       <p>Join thousands of Garba lovers</p>
     </div>
     <form class="auth-form" onsubmit="handleRegister(event)">
+      <button type="button" class="btn btn-google btn-full" onclick="handleGoogleSignIn()">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+        Sign up with Google
+      </button>
+      <div class="auth-divider">or create manually</div>
       <div class="form-row">
         <div class="form-group">
           <label>First Name *</label>
@@ -122,6 +142,11 @@
       <p>Sign in to continue</p>
     </div>
     <form class="auth-form" onsubmit="handleLogin(event)">
+      <button type="button" class="btn btn-google btn-full" onclick="handleGoogleSignIn()">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+        Sign in with Google
+      </button>
+      <div class="auth-divider">or with email</div>
       <div class="form-group">
         <label>Email</label>
         <input type="email" id="login-email" placeholder="priya@email.com" required />
@@ -256,6 +281,10 @@
         </div>
 
         <div class="profile-section danger-zone">
+          <button class="cloud-status-pill" id="profile-cloud-btn" onclick="openFirebaseConfigModal()" style="margin-bottom:1rem;display:inline-flex;">
+            <span class="status-dot"></span> <span id="profile-cloud-status">Database Settings</span>
+          </button>
+          <br />
           <button class="btn btn-outline" onclick="logout()">Sign Out</button>
         </div>
       </div>
@@ -317,6 +346,37 @@
   </div>
 </div>
 
+<!-- ====== FIREBASE DATABASE CONFIG MODAL ====== -->
+<div id="firebase-modal" class="profile-modal hidden">
+  <div class="modal-overlay" onclick="closeFirebaseConfigModal()"></div>
+  <div class="config-modal-box">
+    <button class="modal-close" onclick="closeFirebaseConfigModal()">✕</button>
+    <h3>🔥 Real-time Database Setup</h3>
+    <p>Connect your free Firebase project so you and your friends can register with Google, match each other, and chat in real-time!</p>
+    <ol>
+      <li>Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--gold);text-decoration:underline;">console.firebase.google.com</a> & create a free project.</li>
+      <li>In the sidebar: <b>Authentication</b> → Enable <b>Google</b> sign-in provider.</li>
+      <li>In the sidebar: <b>Firestore Database</b> → Create Database (Start in test mode).</li>
+      <li>In <b>Project Settings (⚙️)</b> → <b>General</b> → Under "Your apps" click Web (&lt;/&gt;) → Copy the <code>firebaseConfig</code> object.</li>
+    </ol>
+    <textarea id="firebase-config-input" rows="8" placeholder='Paste your firebaseConfig object here, e.g.:
+{
+  "apiKey": "AIzaSy...",
+  "authDomain": "myproject.firebaseapp.com",
+  "projectId": "myproject",
+  "storageBucket": "myproject.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "1:123456789:web:abcdef"
+}'></textarea>
+    <div class="config-modal-actions">
+      <button class="btn btn-outline" type="button" onclick="resetFirebaseConfig()">Reset to Demo</button>
+      <button class="btn btn-primary" type="button" onclick="saveFirebaseConfigFromInput()">Save & Connect</button>
+    </div>
+  </div>
+</div>
+
+<script src="firebase-config.js"></script>
+<script src="firebase-service.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

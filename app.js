@@ -112,7 +112,92 @@ let state = {
   selectedSkill: '',
   selectedLooking: '',
   selectedStyles: [],
+  pendingGoogleAuth: null,
+  isCloudActive: false,
 };
+
+// ============================
+// CLOUD DATABASE & MODAL HELPERS
+// ============================
+
+function updateCloudStatusUI() {
+  const isConfigured = !!getActiveFirebaseConfig();
+  state.isCloudActive = isConfigured;
+
+  const splashStatus = document.getElementById('splash-cloud-status');
+  const splashPill = document.getElementById('splash-cloud-pill');
+  const profileStatus = document.getElementById('profile-cloud-status');
+  const profilePill = document.getElementById('profile-cloud-btn');
+
+  const text = isConfigured ? '🟢 Live Database Active' : '⚡ Connect Live Database';
+  if (splashStatus) splashStatus.textContent = text;
+  if (profileStatus) profileStatus.textContent = text;
+  if (splashPill) splashPill.classList.toggle('connected', isConfigured);
+  if (profilePill) profilePill.classList.toggle('connected', isConfigured);
+}
+
+function openFirebaseConfigModal() {
+  const modal = document.getElementById('firebase-modal');
+  if (modal) modal.classList.remove('hidden');
+  const input = document.getElementById('firebase-config-input');
+  const local = localStorage.getItem('gc_firebase_config');
+  if (input && local) {
+    try {
+      input.value = JSON.stringify(JSON.parse(local), null, 2);
+    } catch (_) {
+      input.value = local;
+    }
+  }
+}
+
+function closeFirebaseConfigModal() {
+  const modal = document.getElementById('firebase-modal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function saveFirebaseConfigFromInput() {
+  const input = document.getElementById('firebase-config-input');
+  if (!input) return;
+  const raw = input.value.trim();
+  if (!raw) {
+    showToast('Please paste your Firebase configuration');
+    return;
+  }
+
+  try {
+    let parsed;
+    if (raw.startsWith('{')) {
+      parsed = JSON.parse(raw);
+    } else {
+      const match = raw.match(/\{[\s\S]*\}/);
+      if (match) parsed = (new Function(`return ${match[0]}`))();
+      else throw new Error('Invalid format');
+    }
+
+    if (!parsed.apiKey || !parsed.projectId) {
+      showToast('⚠️ Missing apiKey or projectId in config');
+      return;
+    }
+
+    localStorage.setItem('gc_firebase_config', JSON.stringify(parsed));
+    if (window.garbaFirebase) {
+      window.garbaFirebase.init();
+    }
+    closeFirebaseConfigModal();
+    updateCloudStatusUI();
+    showToast('🎉 Firebase connected! Multi-user live matching is active.');
+  } catch (err) {
+    console.error(err);
+    showToast('⚠️ Invalid config JSON. Please check formatting.');
+  }
+}
+
+function resetFirebaseConfig() {
+  localStorage.removeItem('gc_firebase_config');
+  closeFirebaseConfigModal();
+  updateCloudStatusUI();
+  showToast('Switched back to local demo mode');
+}
 
 // ============================
 // SCREEN MANAGEMENT
@@ -181,32 +266,90 @@ function initTagSelect(containerId) {
 }
 
 // ============================
-// AUTH
+// AUTH & GOOGLE SIGN-IN
 // ============================
 
-function handleRegister(e) {
+async function handleGoogleSignIn() {
+  if (!window.garbaFirebase || !window.garbaFirebase.isInitialized) {
+    if (!window.garbaFirebase?.init()) {
+      openFirebaseConfigModal();
+      showToast('Connect your free Firebase project to enable Google sign-in!');
+      return;
+    }
+  }
+
+  try {
+    showToast('Connecting to Google...');
+    const result = await window.garbaFirebase.signInWithGoogle();
+    const { firebaseUser, profileExists, profileData } = result;
+
+    if (profileExists && profileData) {
+      showToast(`Welcome back, ${profileData.name.split(' ')[0]}! 🎊`);
+      await saveUserAndGo(profileData);
+    } else {
+      // New user from Google - pre-populate registration form
+      state.pendingGoogleAuth = firebaseUser;
+      const nameParts = (firebaseUser.displayName || 'Garba Dancer').trim().split(' ');
+      const fname = nameParts[0] || '';
+      const lname = nameParts.slice(1).join(' ') || '';
+
+      document.getElementById('reg-fname').value = fname;
+      document.getElementById('reg-lname').value = lname;
+      document.getElementById('reg-email').value = firebaseUser.email || '';
+      document.getElementById('reg-password').value = 'GoogleSecret123';
+
+      showScreen('register');
+      showToast(`Hi ${fname}! Please pick your city and dance style to finish.`);
+    }
+  } catch (err) {
+    console.error('Google Sign-In error:', err);
+    if (err.code !== 'auth/popup-closed-by-user') {
+      showToast(`Sign in error: ${err.message || 'Please try again'}`);
+    }
+  }
+}
+
+async function handleRegister(e) {
   e.preventDefault();
   const skill = state.selectedSkill;
   const looking = state.selectedLooking;
   if (!skill) { showToast('Please select your skill level'); return; }
   if (!looking) { showToast('Please select what you\'re looking for'); return; }
 
+  const fname = document.getElementById('reg-fname').value;
+  const lname = document.getElementById('reg-lname').value;
+  const gender = document.getElementById('reg-gender').value;
+  const isGoogle = !!state.pendingGoogleAuth;
+  const uid = isGoogle ? state.pendingGoogleAuth.uid : ('user_' + Date.now());
+  const photoURL = isGoogle ? state.pendingGoogleAuth.photoURL : null;
+
   const user = {
-    id: 'me',
-    name: `${document.getElementById('reg-fname').value} ${document.getElementById('reg-lname').value}`,
+    id: uid,
+    name: `${fname} ${lname}`.trim(),
     email: document.getElementById('reg-email').value,
-    age: parseInt(document.getElementById('reg-age').value),
-    gender: document.getElementById('reg-gender').value,
+    age: parseInt(document.getElementById('reg-age').value) || 24,
+    gender,
     city: document.getElementById('reg-city').value,
     skill,
     looking,
     bio: document.getElementById('reg-bio').value || 'Just here to dance! 💃',
     styles: state.selectedStyles.length ? state.selectedStyles : ['Traditional Garba'],
-    emoji: pickEmoji(document.getElementById('reg-gender').value),
+    emoji: pickEmoji(gender),
+    photoURL,
     color: '#e85d04',
+    isCloudUser: isGoogle || !!window.garbaFirebase?.isInitialized
   };
 
-  saveUserAndGo(user);
+  if (window.garbaFirebase && window.garbaFirebase.isInitialized) {
+    try {
+      await window.garbaFirebase.saveUserProfile(uid, user);
+    } catch (err) {
+      console.warn('Could not save to Firebase, continuing locally:', err);
+    }
+  }
+
+  state.pendingGoogleAuth = null;
+  await saveUserAndGo(user);
 }
 
 function handleLogin(e) {
@@ -216,8 +359,8 @@ function handleLogin(e) {
 
 function demoLogin() {
   const user = {
-    id: 'me',
-    name: 'Demo User',
+    id: 'demo_user',
+    name: 'Demo Dancer',
     email: 'demo@garbaconnect.com',
     age: 25,
     gender: 'Woman',
@@ -227,16 +370,18 @@ function demoLogin() {
     bio: 'Love Garba! Here to find amazing dance partners for Navratri! 🎊',
     styles: ['Traditional Garba', 'Dandiya Raas'],
     emoji: '💃',
+    photoURL: null,
     color: '#e85d04',
+    isCloudUser: false
   };
   saveUserAndGo(user);
 }
 
-function saveUserAndGo(user) {
+async function saveUserAndGo(user) {
   state.user = user;
   localStorage.setItem('gc_user', JSON.stringify(user));
 
-  // Load saved data
+  // Load saved local data
   const saved = localStorage.getItem('gc_state');
   if (saved) {
     try {
@@ -248,14 +393,59 @@ function saveUserAndGo(user) {
     } catch (_) {}
   }
 
-  state.profiles = SAMPLE_PROFILES.map(p => ({ ...p, liked: false, superLiked: false }));
+  // Load discover profiles (cloud friends + fallback sample profiles)
+  let cloudUsers = [];
+  if (window.garbaFirebase && window.garbaFirebase.isInitialized && user.id) {
+    try {
+      cloudUsers = await window.garbaFirebase.fetchDiscoverProfiles(user.id);
+    } catch (err) {
+      console.warn('Error fetching cloud profiles:', err);
+    }
+
+    // Subscribe to cloud matches
+    window.garbaFirebase.subscribeToMatches(user.id, (cloudMatches) => {
+      cloudMatches.forEach(cm => {
+        if (!state.matches.find(m => m.id === cm.userId)) {
+          state.matches.push({
+            id: cm.userId,
+            cloudMatchId: cm.cloudMatchId,
+            name: cm.name,
+            emoji: cm.emoji,
+            photoURL: cm.photoURL,
+            city: cm.city,
+            skill: cm.skill,
+            looking: cm.looking,
+            color: '#e85d04',
+            isCloudMatch: true
+          });
+          state.stats.matches = state.matches.length;
+          const badge = document.getElementById('nav-badge');
+          const notif = document.getElementById('chat-notif');
+          if (badge) badge.style.display = 'block';
+          if (notif) notif.style.display = 'block';
+        }
+      });
+      renderMatches();
+      updateStats();
+    });
+  }
+
+  // Combine real cloud dancers first, then sample profiles
+  const sampleDeck = SAMPLE_PROFILES.map(p => ({ ...p, liked: false, superLiked: false }));
+  state.profiles = [...cloudUsers, ...sampleDeck];
+
   initApp();
   showScreen('app');
   showTab('swipe');
 }
 
-function logout() {
+async function logout() {
   if (!confirm('Are you sure you want to sign out?')) return;
+  if (window.garbaFirebase) {
+    try {
+      await window.garbaFirebase.signOut();
+    } catch (_) {}
+  }
   localStorage.removeItem('gc_user');
   localStorage.removeItem('gc_state');
   state = {
@@ -263,6 +453,7 @@ function logout() {
     matches: [], messages: {}, stats: { likes: 0, matches: 0, msgs: 0 },
     activeChat: null, pendingMatchProfile: null,
     selectedSkill: '', selectedLooking: '', selectedStyles: [],
+    pendingGoogleAuth: null, isCloudActive: false
   };
   showScreen('splash');
 }
@@ -343,9 +534,17 @@ function createCard(profile) {
   bg.style.background = `radial-gradient(ellipse at 30% 40%, ${profile.color}88 0%, ${profile.color}22 50%, #1e1e2e 100%)`;
 
   // Avatar
-  const avatarDiv = document.createElement('div');
-  avatarDiv.style.cssText = `position:absolute;top:50%;left:50%;transform:translate(-50%,-65%);font-size:7rem;pointer-events:none;`;
-  avatarDiv.textContent = profile.emoji;
+  let avatarEl;
+  if (profile.photoURL) {
+    avatarEl = document.createElement('img');
+    avatarEl.className = 'card-avatar-img';
+    avatarEl.src = profile.photoURL;
+    avatarEl.alt = profile.name;
+  } else {
+    avatarEl = document.createElement('div');
+    avatarEl.style.cssText = `position:absolute;top:50%;left:50%;transform:translate(-50%,-65%);font-size:7rem;pointer-events:none;`;
+    avatarEl.textContent = profile.emoji || '💃';
+  }
 
   const gradient = document.createElement('div');
   gradient.className = 'card-gradient';
@@ -376,7 +575,7 @@ function createCard(profile) {
 
   const city = document.createElement('div');
   city.className = 'card-city';
-  city.innerHTML = `📍 ${profile.city}`;
+  city.innerHTML = `📍 ${profile.city}${profile.isCloudUser ? '<span class="card-cloud-badge">🟢 Real Dancer</span>' : ''}`;
 
   const tags = document.createElement('div');
   tags.className = 'card-tags';
@@ -392,7 +591,7 @@ function createCard(profile) {
   info.appendChild(tags);
 
   card.appendChild(bg);
-  card.appendChild(avatarDiv);
+  card.appendChild(avatarEl);
   card.appendChild(gradient);
   card.appendChild(likeInd);
   card.appendChild(nopeInd);
@@ -514,22 +713,64 @@ function swipeCard(direction) {
   }
 }
 
-function processSwipe(direction) {
+async function processSwipe(direction) {
   const profile = state.profiles[state.currentCardIndex];
   if (!profile) return;
 
-  if (direction === 'right' || direction === 'super') {
+  const isLike = direction === 'right' || direction === 'super';
+  if (isLike) {
     state.stats.likes++;
-    // ~60% chance of match
-    const isMatch = Math.random() < 0.6;
-    if (isMatch) {
+  }
+
+  // Cloud multi-user matching
+  if (window.garbaFirebase && window.garbaFirebase.isInitialized && state.user?.id) {
+    try {
+      const cloudResult = await window.garbaFirebase.recordSwipe(
+        state.user.id,
+        profile.id,
+        direction,
+        state.user,
+        profile
+      );
+
+      if (cloudResult.isMatch) {
+        if (!state.matches.find(m => m.id === profile.id)) {
+          state.matches.push({
+            id: profile.id,
+            cloudMatchId: cloudResult.matchId,
+            name: profile.name,
+            emoji: profile.emoji,
+            photoURL: profile.photoURL,
+            city: profile.city,
+            skill: profile.skill,
+            looking: profile.looking,
+            color: profile.color || '#e85d04',
+            isCloudMatch: true
+          });
+          state.stats.matches = state.matches.length;
+          state.messages[profile.id] = [];
+          state.pendingMatchProfile = profile;
+        }
+      }
+    } catch (err) {
+      console.warn('Error saving cloud swipe:', err);
+    }
+  }
+
+  // If not a mutual cloud match, check demo simulation for sample profiles
+  if (isLike && !state.pendingMatchProfile && !profile.isCloudUser) {
+    const isDemoMatch = Math.random() < 0.5;
+    if (isDemoMatch) {
       if (!state.matches.find(m => m.id === profile.id)) {
         state.matches.push(profile);
-        state.stats.matches++;
+        state.stats.matches = state.matches.length;
         state.messages[profile.id] = [];
         state.pendingMatchProfile = profile;
       }
     }
+  }
+
+  if (isLike) {
     showToast(direction === 'super' ? `⭐ Super Liked ${profile.name.split(' ')[0]}!` : `❤️ Liked ${profile.name.split(' ')[0]}!`);
   } else {
     showToast(`Passed on ${profile.name.split(' ')[0]}`);
@@ -673,10 +914,14 @@ function renderMatches() {
     item.className = 'match-item';
     item.onclick = () => openChat(profile);
 
+    const avatarHtml = profile.photoURL
+      ? `<img src="${profile.photoURL}" alt="${profile.name}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);" />`
+      : `<div class="match-item-avatar">${profile.emoji || '💃'}</div>`;
+
     item.innerHTML = `
-      <div class="match-item-avatar">${profile.emoji}</div>
+      ${avatarHtml}
       <div class="match-item-info">
-        <div class="match-item-name">${profile.name}</div>
+        <div class="match-item-name">${profile.name} ${profile.isCloudMatch ? '<span style="font-size:0.7rem;color:#10b981;">● Online</span>' : ''}</div>
         <div class="match-item-msg ${!lastMsg ? '' : 'unread'}">
           ${lastMsg ? lastMsg.text : '🎊 You matched! Say hello!'}
         </div>
@@ -691,21 +936,30 @@ function renderMatches() {
 function openChat(profile) {
   state.activeChat = profile;
 
-  document.getElementById('chat-avatar').src = '';
-  document.getElementById('chat-avatar').alt = profile.emoji;
-  document.getElementById('chat-avatar').style.background = `linear-gradient(135deg, ${profile.color}, #7b2d8b)`;
-  document.getElementById('chat-avatar').style.fontSize = '1.5rem';
-  document.getElementById('chat-avatar').style.display = 'flex';
-  document.getElementById('chat-avatar').style.alignItems = 'center';
-  document.getElementById('chat-avatar').style.justifyContent = 'center';
-  // Use a plain div instead
-  const avatarEl = document.getElementById('chat-avatar');
-  avatarEl.outerHTML = `<div id="chat-avatar" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,${profile.color},#7b2d8b);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">${profile.emoji}</div>`;
+  const headerAvatarEl = document.getElementById('chat-avatar');
+  if (profile.photoURL) {
+    headerAvatarEl.outerHTML = `<img id="chat-avatar" src="${profile.photoURL}" alt="${profile.name}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`;
+  } else {
+    headerAvatarEl.outerHTML = `<div id="chat-avatar" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,${profile.color || '#e85d04'},#7b2d8b);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">${profile.emoji || '💃'}</div>`;
+  }
 
   document.getElementById('chat-name').textContent = profile.name;
   document.getElementById('chat-window').classList.remove('hidden');
 
-  renderChatMessages(profile);
+  // If cloud match, subscribe to real-time chat messages from Firestore
+  if (profile.cloudMatchId && window.garbaFirebase?.isInitialized) {
+    window.garbaFirebase.subscribeToChat(profile.cloudMatchId, (cloudMsgs) => {
+      state.messages[profile.id] = cloudMsgs.map(m => ({
+        text: m.text,
+        sent: m.senderId === state.user.id,
+        time: m.time
+      }));
+      renderChatMessages(profile);
+    });
+  } else {
+    renderChatMessages(profile);
+  }
+
   document.getElementById('chat-input').focus();
 }
 
@@ -713,14 +967,18 @@ function renderChatMessages(profile) {
   const container = document.getElementById('chat-messages');
   container.innerHTML = '';
 
+  const avatarDisplay = profile.photoURL 
+    ? `<img src="${profile.photoURL}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);" />`
+    : `<div class="match-intro-av">${profile.emoji || '💃'}</div>`;
+
   // Match intro
   const intro = document.createElement('div');
   intro.className = 'chat-match-intro';
   intro.innerHTML = `
-    <div class="match-intro-av">${profile.emoji}</div>
+    ${avatarDisplay}
     <strong>${profile.name}</strong>
     <p style="font-size:0.8rem;margin-top:0.3rem">${profile.city} • ${profile.skill} • ${profile.looking}</p>
-    <p style="font-size:0.85rem;margin-top:0.8rem;color:var(--text2)">${profile.bio}</p>
+    <p style="font-size:0.85rem;margin-top:0.8rem;color:var(--text2)">${profile.bio || 'Ready for Garba!'}</p>
   `;
   container.appendChild(intro);
 
@@ -741,33 +999,45 @@ function closeChatWindow() {
   renderMatches();
 }
 
-function sendMessage() {
+async function sendMessage() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
   if (!text || !state.activeChat) return;
 
+  const currentChat = state.activeChat;
+  input.value = '';
+
+  // 1. If it's a real Cloud Match, send to Firestore
+  if (currentChat.cloudMatchId && window.garbaFirebase?.isInitialized) {
+    try {
+      await window.garbaFirebase.sendMessage(currentChat.cloudMatchId, state.user.id, text);
+    } catch (err) {
+      console.warn('Error sending cloud message:', err);
+    }
+    state.stats.msgs++;
+    updateStats();
+    return;
+  }
+
+  // 2. Local / Demo mode handling
   const msg = { text, sent: true, time: Date.now() };
-  if (!state.messages[state.activeChat.id]) state.messages[state.activeChat.id] = [];
-  state.messages[state.activeChat.id].push(msg);
+  if (!state.messages[currentChat.id]) state.messages[currentChat.id] = [];
+  state.messages[currentChat.id].push(msg);
   state.stats.msgs++;
 
-  input.value = '';
-  renderChatMessages(state.activeChat);
+  renderChatMessages(currentChat);
   saveState();
   updateStats();
 
-  // Auto reply after delay
-  const profile = state.activeChat;
+  // Demo auto-reply after delay
   setTimeout(() => {
-    if (state.activeChat?.id !== profile.id) return; // user switched chat
+    if (state.activeChat?.id !== currentChat.id) return;
     const reply = AUTO_REPLIES[Math.floor(Math.random() * AUTO_REPLIES.length)];
     const replyMsg = { text: reply, sent: false, time: Date.now() };
-    state.messages[profile.id].push(replyMsg);
-    renderChatMessages(profile);
+    state.messages[currentChat.id].push(replyMsg);
+    renderChatMessages(currentChat);
     saveState();
-
-    // Show notification if not in chat tab
-    showToast(`💬 ${profile.name.split(' ')[0]}: ${reply.substring(0,30)}...`);
+    showToast(`💬 ${currentChat.name.split(' ')[0]}: ${reply.substring(0,30)}...`);
   }, 1000 + Math.random() * 2000);
 }
 
@@ -931,6 +1201,12 @@ window.addEventListener('DOMContentLoaded', () => {
   initSkillBtns('reg-looking', 'looking');
   initTagSelect('reg-styles');
 
+  // Initialize Firebase if configured
+  if (window.garbaFirebase) {
+    window.garbaFirebase.init();
+  }
+  updateCloudStatusUI();
+
   const saved = localStorage.getItem('gc_user');
   if (saved) {
     try {
@@ -944,3 +1220,4 @@ window.addEventListener('DOMContentLoaded', () => {
     showScreen('splash');
   }
 });
+

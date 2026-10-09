@@ -1193,3 +1193,152 @@ textarea { resize: vertical; min-height: 80px; }
   .chat-window { max-width: 480px; left: 50%; transform: translateX(-50%); }
   .topbar { max-width: 480px; left: 50%; transform: translateX(-50%); }
 }
+
+/* ============================
+   GOOGLE AUTH & FIREBASE CLOUD
+   ============================ */
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: #ffffff;
+  color: #1f2937;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.btn-google:hover {
+  background: #f3f4f6;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+.btn-google svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.cloud-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text2);
+  cursor: pointer;
+  margin-top: 0.75rem;
+  transition: all 0.2s ease;
+}
+.cloud-status-pill:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text);
+  border-color: var(--primary-light);
+}
+.cloud-status-pill .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b; /* Amber = demo mode */
+}
+.cloud-status-pill.connected .status-dot {
+  background: #10b981; /* Green = connected */
+  box-shadow: 0 0 8px #10b981;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--text2);
+  font-size: 0.8rem;
+  margin: 1rem 0;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border);
+}
+.auth-divider::before { margin-right: 0.75rem; }
+.auth-divider::after { margin-left: 0.75rem; }
+
+/* Firebase Config Modal */
+.config-modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1.75rem;
+  width: 90%;
+  max-width: 440px;
+  color: var(--text);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.config-modal-box h3 {
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+  color: var(--gold);
+}
+.config-modal-box p {
+  font-size: 0.85rem;
+  color: var(--text2);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+.config-modal-box ol {
+  font-size: 0.82rem;
+  color: var(--text2);
+  padding-left: 1.25rem;
+  margin-bottom: 1.25rem;
+  line-height: 1.6;
+}
+.config-modal-box textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: #fff;
+  font-family: monospace;
+  font-size: 0.8rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+.config-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+/* Real Card Avatar Photo */
+.card-avatar-img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -65%);
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  pointer-events: none;
+}
+.card-cloud-badge {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+}
+
