@@ -281,6 +281,7 @@ async function handleGoogleSignIn() {
   try {
     showToast('Connecting to Google...');
     const result = await window.garbaFirebase.signInWithGoogle();
+    if (!result) return; // Handled by redirect fallback
     const { firebaseUser, profileExists, profileData } = result;
 
     if (profileExists && profileData) {
@@ -303,8 +304,14 @@ async function handleGoogleSignIn() {
     }
   } catch (err) {
     console.error('Google Sign-In error:', err);
-    if (err.code !== 'auth/popup-closed-by-user') {
-      showToast(`Sign in error: ${err.message || 'Please try again'}`);
+    if (err.code === 'auth/unauthorized-domain') {
+      showToast('⚠️ Domain not authorized! Add mrharshalbane.github.io to Firebase Auth > Settings > Authorized domains.');
+    } else if (err.code === 'auth/operation-not-allowed') {
+      showToast('⚠️ Google Provider not enabled in Firebase Console > Authentication > Sign-in method.');
+    } else if (err.code === 'auth/configuration-not-found' || err.code === 'auth/invalid-api-key') {
+      showToast('⚠️ Invalid Firebase API key in Database Settings.');
+    } else if (err.code !== 'auth/popup-closed-by-user') {
+      showToast(`Sign in error: ${err.message || 'Please check Firebase setup.'}`);
     }
   }
 }
@@ -1206,6 +1213,33 @@ window.addEventListener('DOMContentLoaded', () => {
     window.garbaFirebase.init();
   }
   updateCloudStatusUI();
+
+  // Handle potential redirect result (for mobile browsers where popup was blocked)
+  if (window.garbaFirebase && window.garbaFirebase.auth) {
+    window.garbaFirebase.auth.getRedirectResult().then(async (result) => {
+      if (result && result.user) {
+        const user = result.user;
+        const userDoc = await window.garbaFirebase.db.collection('users').doc(user.uid).get();
+        if (userDoc.exists) {
+          showToast(`Welcome back, ${userDoc.data().name.split(' ')[0]}! 🎊`);
+          await saveUserAndGo(userDoc.data());
+        } else {
+          state.pendingGoogleAuth = user;
+          const nameParts = (user.displayName || 'Garba Dancer').trim().split(' ');
+          const fname = nameParts[0] || '';
+          const lname = nameParts.slice(1).join(' ') || '';
+          document.getElementById('reg-fname').value = fname;
+          document.getElementById('reg-lname').value = lname;
+          document.getElementById('reg-email').value = user.email || '';
+          document.getElementById('reg-password').value = 'GoogleSecret123';
+          showScreen('register');
+          showToast(`Hi ${fname}! Please pick your city and dance style to finish.`);
+        }
+      }
+    }).catch(err => {
+      console.warn('Redirect sign-in check:', err);
+    });
+  }
 
   const saved = localStorage.getItem('gc_user');
   if (saved) {

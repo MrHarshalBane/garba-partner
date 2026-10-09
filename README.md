@@ -20,15 +20,17 @@
 
 ---
 
-## 🔥 Connecting the Live Database (To Share With Friends)
+## 🔥 Connecting the Live Database & Google Sign-In
 
-To let your friends register with Google, discover each other, match, and chat in real-time:
+To enable Google Sign-In and live multi-user matching:
 
-1. Go to [Firebase Console](https://console.firebase.google.com) and create a free project (e.g. `garba-partner`).
-2. In the sidebar: **Build** → **Authentication** → **Get Started** → Enable **Google**.
-3. In the sidebar: **Build** → **Firestore Database** → **Create Database** → Select *Start in test mode*.
-4. In **Project Settings** (⚙️) → **General** → Under *Your apps*, click **Web (</>)** and copy the `firebaseConfig` snippet.
-5. Either:
+1. Go to [Firebase Console](https://console.firebase.google.com) and create or open your project.
+2. In the sidebar: **Build** → **Authentication** → **Sign-in method** → Enable **Google**.
+3. Under **Authentication** → **Settings** → **Authorized domains**, ensure **`mrharshalbane.github.io`** is added (otherwise Google Sign-In popup will be blocked by Firebase).
+4. In the sidebar: **Build** → **Firestore Database** → **Rules**:
+   - Copy the rules from [`firestore.rules`](file:///C:/Users/harsh/.gemini/antigravity-ide/scratch/garba-partner/firestore.rules) and publish them. This ensures attackers cannot access, tamper with, or escalate privileges on your user data, chats, or matches.
+5. In **Project Settings** (⚙️) → **General** → Under *Your apps*, copy the `firebaseConfig` object.
+6. Either:
    - Paste the config directly inside the app by clicking the **Database Settings** button on the splash/profile page, OR
    - Edit [`firebase-config.js`](file:///C:/Users/harsh/.gemini/antigravity-ide/scratch/garba-partner/firebase-config.js) and paste the values.
 
