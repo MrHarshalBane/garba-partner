@@ -11,7 +11,8 @@
 - 🔥 **Swipe to match** – Left/right swipe, button clicks, or keyboard arrows
 - ⭐ **Super Like** – Show extra interest
 - 🌐 **Multi-User Cloud Mode** – Connect free Firebase for real user matching with friends!
-- 🔐 **Google Sign-In** – Instant 1-click login with profile name & picture
+- 🔐 **Secure Email & Password** – Simplified registration without third-party OAuth popup friction
+- 🛡️ **2FA & OTP Verification** – Mandatory Email OTP verification + SMS/WhatsApp Mobile 2FA confirmation
 - 💬 **Live Real-time Chat** – Chat with matches instantly via Cloud Firestore
 - 👤 **Custom Profiles** – City, age, skill level, looking-for, and favorite Garba styles
 - 🎊 **Match Celebration** – Animated confetti when two dancers like each other
@@ -20,17 +21,16 @@
 
 ---
 
-## 🔥 Connecting the Live Database & Google Sign-In
+## 🔥 Connecting the Live Database & 2FA Auth
 
-To enable Google Sign-In and live multi-user matching:
+To enable multi-user matching and live chat with friends:
 
 1. Go to [Firebase Console](https://console.firebase.google.com) and create or open your project.
-2. In the sidebar: **Build** → **Authentication** → **Sign-in method** → Enable **Google**.
-3. Under **Authentication** → **Settings** → **Authorized domains**, ensure **`mrharshalbane.github.io`** is added (otherwise Google Sign-In popup will be blocked by Firebase).
-4. In the sidebar: **Build** → **Firestore Database** → **Rules**:
+2. In the sidebar: **Build** → **Authentication** → **Sign-in method** → Enable **Email/Password**.
+3. In the sidebar: **Build** → **Firestore Database** → **Rules**:
    - Copy the rules from [`firestore.rules`](file:///C:/Users/harsh/.gemini/antigravity-ide/scratch/garba-partner/firestore.rules) and publish them. This ensures attackers cannot access, tamper with, or escalate privileges on your user data, chats, or matches.
-5. In **Project Settings** (⚙️) → **General** → Under *Your apps*, copy the `firebaseConfig` object.
-6. Either:
+4. In **Project Settings** (⚙️) → **General** → Under *Your apps*, copy the `firebaseConfig` object.
+5. Either:
    - Paste the config directly inside the app by clicking the **Database Settings** button on the splash/profile page, OR
    - Edit [`firebase-config.js`](file:///C:/Users/harsh/.gemini/antigravity-ide/scratch/garba-partner/firebase-config.js) and paste the values.
 

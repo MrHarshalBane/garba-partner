@@ -27,12 +27,8 @@
       <p class="logo-tagline">ગરબા પાર્ટનર શોધો • Find Your Garba Partner</p>
     </div>
     <div class="splash-actions">
-      <button class="btn btn-google btn-lg" onclick="handleGoogleSignIn()">
-        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-        Continue with Google
-      </button>
-      <div class="auth-divider">or explore</div>
-      <button class="btn btn-primary btn-lg" onclick="showScreen('register')">Create Profile</button>
+      <button class="btn btn-primary btn-lg" onclick="showScreen('login')">Sign In with Email</button>
+      <button class="btn btn-secondary btn-lg" onclick="showScreen('register')">Create New Account</button>
       <button class="btn btn-outline btn-lg" onclick="demoLogin()">Try Demo (Guest)</button>
     </div>
     <div style="text-align:center;">
@@ -40,7 +36,7 @@
         <span class="status-dot"></span> <span id="splash-cloud-status">Database Settings</span>
       </button>
     </div>
-    <p class="splash-note">🎉 Navratri 2025 – Find real dancers near you!</p>
+    <p class="splash-note">🎉 Navratri 2025 – Safe & Verified Dancers Near You!</p>
   </div>
   <div class="floating-emojis">
     <span style="--delay:0s;--x:10%;--size:2rem">🪔</span>
@@ -59,14 +55,9 @@
     <div class="auth-header">
       <span class="logo-icon sm">🪔</span>
       <h2>Create Your Profile</h2>
-      <p>Join thousands of Garba lovers</p>
+      <p>Sign up with Email & Phone 2FA verification</p>
     </div>
     <form class="auth-form" onsubmit="handleRegister(event)">
-      <button type="button" class="btn btn-google btn-full" onclick="handleGoogleSignIn()">
-        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-        Sign up with Google
-      </button>
-      <div class="auth-divider">or create manually</div>
       <div class="form-row">
         <div class="form-group">
           <label>First Name *</label>
@@ -78,8 +69,15 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Email *</label>
+        <label>Email Address (OTP Verified) *</label>
         <input type="email" id="reg-email" placeholder="priya@email.com" required />
+      </div>
+      <div class="form-group">
+        <label>Mobile Number (For 2FA SMS/WhatsApp OTP) *</label>
+        <div style="display:flex;gap:0.5rem;">
+          <input type="text" value="+91" readonly style="width:70px;text-align:center;font-weight:600;opacity:0.9;" />
+          <input type="tel" id="reg-phone" placeholder="9876543210" required pattern="[0-9]{10}" maxlength="10" />
+        </div>
       </div>
       <div class="form-group">
         <label>Password *</label>
@@ -126,7 +124,7 @@
         <label>Short Bio</label>
         <textarea id="reg-bio" placeholder="Describe yourself – your dance style, favorite Garba events, what you're looking for..." rows="3"></textarea>
       </div>
-      <button type="submit" class="btn btn-primary btn-full">Create Profile 🎊</button>
+      <button type="submit" class="btn btn-primary btn-full">Continue to Verification 🔐</button>
       <p class="auth-switch">Already have an account? <a onclick="showScreen('login')">Sign In</a></p>
     </form>
   </div>
@@ -139,14 +137,9 @@
     <div class="auth-header">
       <span class="logo-icon sm">🪔</span>
       <h2>Welcome Back!</h2>
-      <p>Sign in to continue</p>
+      <p>Sign in with your Email & Password</p>
     </div>
     <form class="auth-form" onsubmit="handleLogin(event)">
-      <button type="button" class="btn btn-google btn-full" onclick="handleGoogleSignIn()">
-        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-        Sign in with Google
-      </button>
-      <div class="auth-divider">or with email</div>
       <div class="form-group">
         <label>Email</label>
         <input type="email" id="login-email" placeholder="priya@email.com" required />
@@ -155,9 +148,10 @@
         <label>Password</label>
         <input type="password" id="login-password" placeholder="Your password" required />
       </div>
-      <button type="submit" class="btn btn-primary btn-full">Sign In</button>
-      <button type="button" class="btn btn-outline btn-full" onclick="demoLogin()">Try Demo (No Signup)</button>
-      <p class="auth-switch">New here? <a onclick="showScreen('register')">Create Profile</a></p>
+      <button type="submit" class="btn btn-primary btn-full">Sign In with 2FA 🛡️</button>
+      <div class="auth-divider">or explore</div>
+      <button type="button" class="btn btn-outline btn-full" onclick="demoLogin()">Try Demo (Guest Mode)</button>
+      <p class="auth-switch">New here? <a onclick="showScreen('register')">Create Account</a></p>
     </form>
   </div>
 </div>
@@ -371,6 +365,50 @@
     <div class="config-modal-actions">
       <button class="btn btn-outline" type="button" onclick="resetFirebaseConfig()">Reset to Demo</button>
       <button class="btn btn-primary" type="button" onclick="saveFirebaseConfigFromInput()">Save & Connect</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 2FA & OTP VERIFICATION MODAL ====== -->
+<div id="otp-modal" class="profile-modal hidden">
+  <div class="modal-overlay"></div>
+  <div class="config-modal-box otp-modal-box">
+    <button class="modal-close" onclick="closeOtpModal()">✕</button>
+    <div style="text-align:center;margin-bottom:1rem;">
+      <span style="font-size:2.8rem;">🛡️</span>
+      <h3 id="otp-modal-title" style="margin-top:0.3rem;">Verification & 2FA</h3>
+      <p id="otp-modal-desc" style="margin-bottom:0.8rem;">Enter the verification codes sent to your email and phone.</p>
+    </div>
+
+    <!-- Step 1: Email OTP -->
+    <div id="otp-email-section" class="otp-section">
+      <div class="otp-header-badge">
+        <span>📧 Email Verification Code</span>
+        <button type="button" class="resend-btn" onclick="resendEmailOtp()">Resend OTP</button>
+      </div>
+      <p class="otp-sent-to">Sent to: <b id="otp-display-email">user@email.com</b></p>
+      <div class="otp-demo-hint" id="otp-email-hint"></div>
+      <div class="otp-inputs-row">
+        <input type="text" maxlength="6" id="input-email-otp" placeholder="6-digit Email OTP" autocomplete="one-time-code" />
+      </div>
+    </div>
+
+    <!-- Step 2: Phone 2FA OTP -->
+    <div id="otp-phone-section" class="otp-section" style="margin-top:1.25rem;">
+      <div class="otp-header-badge">
+        <span>📱 Mobile 2FA Security Code</span>
+        <button type="button" class="resend-btn" onclick="resendPhoneOtp()">Resend SMS/WhatsApp</button>
+      </div>
+      <p class="otp-sent-to">Sent to: <b id="otp-display-phone">+91 98765 43210</b></p>
+      <div class="otp-demo-hint" id="otp-phone-hint"></div>
+      <div class="otp-inputs-row">
+        <input type="text" maxlength="6" id="input-phone-otp" placeholder="6-digit Mobile 2FA OTP" autocomplete="one-time-code" />
+      </div>
+    </div>
+
+    <div style="margin-top:1.5rem;display:flex;gap:0.75rem;">
+      <button class="btn btn-outline" type="button" style="flex:1;" onclick="closeOtpModal()">Cancel</button>
+      <button class="btn btn-primary" type="button" style="flex:2;" onclick="verifyOtpAndProceed()">Verify & Login 🚀</button>
     </div>
   </div>
 </div>
