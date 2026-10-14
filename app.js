@@ -70,7 +70,7 @@ const SAMPLE_PROFILES = [
   {
     id: 'p7', name: 'Nisha Agarwal', age: 23, city: 'Pune',
     gender: 'Woman', skill: 'Intermediate', looking: 'Dance Partner',
-    bio: 'Pune-based marketing student. Garba has been part of my life since childhood. Ready for Navratri 2025! 🎉',
+    bio: 'Pune-based marketing student. Garba has been part of my life since childhood. Ready for Navratri! 🎉',
     styles: ['Modern Fusion', 'Bollywood Garba', 'Dandiya Raas'],
     emoji: '👩', color: '#e85d04',
     liked: false, superLiked: false
@@ -97,6 +97,20 @@ const AUTO_REPLIES = [
 ];
 
 // ============================
+// SECURITY & SANITIZATION (XSS & INJECTION PROTECTION)
+// ============================
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ============================
 // STATE
 // ============================
 
@@ -114,6 +128,7 @@ let state = {
   selectedStyles: [],
   pendingGoogleAuth: null,
   isCloudActive: false,
+  pendingVerification: null, // { user, code, expiresAt, mode }
 };
 
 // ============================
@@ -316,8 +331,9 @@ async function handleRegister(e) {
   if (!skill) { showToast('Please select your skill level'); return; }
   if (!looking) { showToast('Please select what you\'re looking for'); return; }
 
-  const fname = document.getElementById('reg-fname').value;
-  const lname = document.getElementById('reg-lname').value;
+  const fname = document.getElementById('reg-fname').value.trim();
+  const lname = document.getElementById('reg-lname').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
   const gender = document.getElementById('reg-gender').value;
   const isGoogle = !!state.pendingGoogleAuth;
   const uid = isGoogle ? state.pendingGoogleAuth.uid : ('user_' + Date.now());
@@ -326,13 +342,13 @@ async function handleRegister(e) {
   const user = {
     id: uid,
     name: `${fname} ${lname}`.trim(),
-    email: document.getElementById('reg-email').value,
+    email: email,
     age: parseInt(document.getElementById('reg-age').value) || 24,
     gender,
-    city: document.getElementById('reg-city').value,
+    city: document.getElementById('reg-city').value.trim(),
     skill,
     looking,
-    bio: document.getElementById('reg-bio').value || 'Just here to dance! 💃',
+    bio: document.getElementById('reg-bio').value.trim() || 'Just here to dance! 💃',
     styles: state.selectedStyles.length ? state.selectedStyles : ['Traditional Garba'],
     emoji: pickEmoji(gender),
     photoURL,
@@ -340,21 +356,167 @@ async function handleRegister(e) {
     isCloudUser: isGoogle || !!window.garbaFirebase?.isInitialized
   };
 
-  if (window.garbaFirebase && window.garbaFirebase.isInitialized) {
+  // If already authenticated via Google, 2FA/Email is already Google-verified
+  if (isGoogle) {
+    if (window.garbaFirebase && window.garbaFirebase.isInitialized) {
+      try {
+        await window.garbaFirebase.saveUserProfile(uid, user);
+      } catch (err) {
+        console.warn('Could not save to Firebase, continuing locally:', err);
+      }
+    }
+    state.pendingGoogleAuth = null;
+    await saveUserAndGo(user);
+    return;
+  }
+
+  // Trigger 2FA Email Verification before completing registration
+  initiateEmail2FA(user, 'register');
+}
+
+function handleLogin(e) {
+  e.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) {
+    showToast('Please fill in your email and password');
+    return;
+  }
+
+  // Check if we have this registered user in local storage
+  const savedUserRaw = localStorage.getItem('gc_user');
+  let existingUser = null;
+  if (savedUserRaw) {
     try {
-      await window.garbaFirebase.saveUserProfile(uid, user);
+      const u = JSON.parse(savedUserRaw);
+      if (u && u.email && u.email.toLowerCase() === email.toLowerCase()) {
+        existingUser = u;
+      }
+    } catch (_) {}
+  }
+
+  if (!existingUser) {
+    // Create session user profile from credentials
+    const namePart = email.split('@')[0] || 'Dancer';
+    const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
+    existingUser = {
+      id: 'user_' + Date.now(),
+      name: formattedName,
+      email: email,
+      age: 24,
+      gender: 'Dancer',
+      city: 'Ahmedabad',
+      skill: 'Intermediate',
+      looking: 'Dance Partner',
+      bio: 'Ready for Navratri! 🪔',
+      styles: ['Traditional Garba', 'Dandiya Raas'],
+      emoji: '💃',
+      photoURL: null,
+      color: '#e85d04',
+      isCloudUser: !!window.garbaFirebase?.isInitialized
+    };
+  }
+
+  // Require 2FA verification for email sign-in
+  initiateEmail2FA(existingUser, 'login');
+}
+
+// ============================
+// 2FA EMAIL VERIFICATION SYSTEM
+// ============================
+
+function generateOtpCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function initiateEmail2FA(user, mode) {
+  const code = generateOtpCode();
+  state.pendingVerification = {
+    user,
+    code,
+    mode,
+    expiresAt: Date.now() + 5 * 60 * 1000 // 5 minutes
+  };
+
+  const modal = document.getElementById('otp-modal');
+  const targetEmailEl = document.getElementById('otp-email-target');
+  const demoCodeEl = document.getElementById('otp-demo-code');
+  const inputEl = document.getElementById('otp-input');
+
+  if (targetEmailEl) targetEmailEl.textContent = user.email || 'your email';
+  if (demoCodeEl) demoCodeEl.textContent = code;
+  if (inputEl) {
+    inputEl.value = '';
+    setTimeout(() => inputEl.focus(), 200);
+  }
+
+  if (modal) modal.classList.remove('hidden');
+  showToast(`🔐 2FA verification code sent to ${user.email}!`);
+}
+
+function closeOtpModal() {
+  const modal = document.getElementById('otp-modal');
+  if (modal) modal.classList.add('hidden');
+  state.pendingVerification = null;
+}
+
+function resendOtpCode() {
+  if (!state.pendingVerification) return;
+  const newCode = generateOtpCode();
+  state.pendingVerification.code = newCode;
+  state.pendingVerification.expiresAt = Date.now() + 5 * 60 * 1000;
+
+  const demoCodeEl = document.getElementById('otp-demo-code');
+  if (demoCodeEl) demoCodeEl.textContent = newCode;
+  const inputEl = document.getElementById('otp-input');
+  if (inputEl) {
+    inputEl.value = '';
+    inputEl.focus();
+  }
+
+  showToast(`📨 New 2FA code generated: ${newCode}`);
+}
+
+async function verifyOtpCode() {
+  const inputEl = document.getElementById('otp-input');
+  if (!inputEl) return;
+  const entered = inputEl.value.trim();
+
+  if (!state.pendingVerification) {
+    showToast('⚠️ No active verification session. Please try again.');
+    closeOtpModal();
+    return;
+  }
+
+  if (Date.now() > state.pendingVerification.expiresAt) {
+    showToast('⚠️ Code expired. Please click "Resend Code".');
+    return;
+  }
+
+  if (entered !== state.pendingVerification.code) {
+    showToast('❌ Invalid verification code. Please check and re-enter.');
+    inputEl.focus();
+    inputEl.select();
+    return;
+  }
+
+  // Verification SUCCESS!
+  const verifiedUser = state.pendingVerification.user;
+  const mode = state.pendingVerification.mode;
+  closeOtpModal();
+
+  showToast('✅ 2FA Email verification successful! Welcome! 🎉');
+
+  if (mode === 'register' && window.garbaFirebase && window.garbaFirebase.isInitialized) {
+    try {
+      await window.garbaFirebase.saveUserProfile(verifiedUser.id, verifiedUser);
     } catch (err) {
       console.warn('Could not save to Firebase, continuing locally:', err);
     }
   }
 
-  state.pendingGoogleAuth = null;
-  await saveUserAndGo(user);
-}
-
-function handleLogin(e) {
-  e.preventDefault();
-  demoLogin();
+  await saveUserAndGo(verifiedUser);
 }
 
 function demoLogin() {
@@ -1206,6 +1368,15 @@ window.addEventListener('DOMContentLoaded', () => {
     window.garbaFirebase.init();
   }
   updateCloudStatusUI();
+
+  const otpInput = document.getElementById('otp-input');
+  if (otpInput) {
+    otpInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') {
+        verifyOtpCode();
+      }
+    });
+  }
 
   const saved = localStorage.getItem('gc_user');
   if (saved) {

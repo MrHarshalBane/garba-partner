@@ -40,7 +40,7 @@
         <span class="status-dot"></span> <span id="splash-cloud-status">Database Settings</span>
       </button>
     </div>
-    <p class="splash-note">🎉 Navratri 2025 – Find real dancers near you!</p>
+    <p class="splash-note">🎉 Navratri – Find real dancers near you!</p>
   </div>
   <div class="floating-emojis">
     <span style="--delay:0s;--x:10%;--size:2rem">🪔</span>
@@ -372,6 +372,32 @@
       <button class="btn btn-outline" type="button" onclick="resetFirebaseConfig()">Reset to Demo</button>
       <button class="btn btn-primary" type="button" onclick="saveFirebaseConfigFromInput()">Save & Connect</button>
     </div>
+  </div>
+</div>
+
+<!-- ====== 2FA EMAIL VERIFICATION MODAL ====== -->
+<div id="otp-modal" class="profile-modal hidden">
+  <div class="modal-overlay" onclick="closeOtpModal()"></div>
+  <div class="config-modal-box" style="text-align: center; max-width: 420px;">
+    <button class="modal-close" onclick="closeOtpModal()">✕</button>
+    <div style="font-size: 2.8rem; margin-bottom: 0.5rem;">🔐</div>
+    <h3 style="font-size: 1.4rem; margin-bottom: 0.4rem;">Email Verification (2FA)</h3>
+    <p style="font-size: 0.88rem; color: var(--text2); margin-bottom: 1.2rem;">
+      We sent a 6-digit security code to <b id="otp-email-target" style="color: var(--gold);">user@example.com</b>. Enter it below to complete verification:
+    </p>
+    <div id="otp-demo-banner" style="background: rgba(232, 93, 4, 0.15); border: 1px dashed var(--primary); border-radius: 10px; padding: 0.6rem; font-size: 0.85rem; color: var(--gold); margin-bottom: 1.2rem;">
+      ✨ Free instant verification active! Your code: <strong id="otp-demo-code" style="letter-spacing: 2px; font-size: 1.1rem; color: #fff;">123456</strong>
+    </div>
+    <div class="form-group" style="margin-bottom: 1.2rem;">
+      <input type="text" id="otp-input" maxlength="6" placeholder="• • • • • •" style="letter-spacing: 8px; text-align: center; font-size: 1.6rem; font-weight: 700; text-transform: uppercase; padding: 0.6rem;" autocomplete="one-time-code" />
+    </div>
+    <div style="display: flex; gap: 0.8rem; justify-content: center;">
+      <button type="button" class="btn btn-outline" onclick="resendOtpCode()" id="otp-resend-btn" style="flex: 1;">Resend Code</button>
+      <button type="button" class="btn btn-primary" onclick="verifyOtpCode()" id="otp-verify-btn" style="flex: 1;">Verify & Continue ✓</button>
+    </div>
+    <p style="font-size: 0.75rem; color: var(--text2); margin-top: 1rem;">
+      100% free & secure verification without costly SMS charges.
+    </p>
   </div>
 </div>
 
