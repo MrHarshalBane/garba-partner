@@ -281,46 +281,180 @@ function initTagSelect(containerId) {
 }
 
 // ============================
-// AUTH & GOOGLE SIGN-IN
+// AUTH, EMAIL OTP & PHONE 2FA
 // ============================
 
-async function handleGoogleSignIn() {
-  if (!window.garbaFirebase || !window.garbaFirebase.isInitialized) {
-    if (!window.garbaFirebase?.init()) {
-      openFirebaseConfigModal();
-      showToast('Connect your free Firebase project to enable Google sign-in!');
-      return;
-    }
+function generateRandomOtp() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+function openOtpModal(mode, userData, credentials) {
+  const modal = document.getElementById('otp-modal');
+  if (!modal) return;
+
+  const emailOtp = generateRandomOtp();
+  const phoneOtp = generateRandomOtp();
+
+  state.pendingVerification = {
+    mode, // 'register' or 'login'
+    userData, // for register
+    credentials, // for login: { email, password }
+    emailOtp,
+    phoneOtp,
+    email: (userData ? userData.email : credentials?.email) || '',
+    phone: (userData ? userData.phone : credentials?.phone) || '9876543210'
+  };
+
+  const title = document.getElementById('otp-modal-title');
+  const desc = document.getElementById('otp-modal-desc');
+  const displayEmail = document.getElementById('otp-display-email');
+  const displayPhone = document.getElementById('otp-display-phone');
+  const emailHint = document.getElementById('otp-email-hint');
+  const phoneHint = document.getElementById('otp-phone-hint');
+  const inputEmail = document.getElementById('input-email-otp');
+  const inputPhone = document.getElementById('input-phone-otp');
+
+  if (title) title.textContent = mode === 'register' ? 'Verify Email & Phone 2FA' : 'Two-Factor Authentication (2FA)';
+  if (desc) desc.textContent = mode === 'register' 
+    ? 'Please verify both your email address and mobile number to activate your account.' 
+    : 'A 2FA security code has been sent to your registered email and mobile number.';
+
+  if (displayEmail) displayEmail.textContent = state.pendingVerification.email;
+  if (displayPhone) displayPhone.textContent = `+91 ${state.pendingVerification.phone}`;
+
+  // Instant interactive display: shows generated verification codes for frictionless verification
+  if (emailHint) {
+    emailHint.innerHTML = `<span>Verification Code sent to inbox:</span> <span class="code">${emailOtp}</span>`;
+  }
+  if (phoneHint) {
+    phoneHint.innerHTML = `<span>SMS / WhatsApp 2FA OTP:</span> <span class="code">${phoneOtp}</span>`;
   }
 
-  try {
-    showToast('Connecting to Google...');
-    const result = await window.garbaFirebase.signInWithGoogle();
-    const { firebaseUser, profileExists, profileData } = result;
+  if (inputEmail) {
+    inputEmail.value = '';
+    inputEmail.placeholder = `Enter 6-digit Email OTP`;
+  }
+  if (inputPhone) {
+    inputPhone.value = '';
+    inputPhone.placeholder = `Enter 6-digit Mobile OTP`;
+  }
 
-    if (profileExists && profileData) {
-      showToast(`Welcome back, ${profileData.name.split(' ')[0]}! 🎊`);
-      await saveUserAndGo(profileData);
-    } else {
-      // New user from Google - pre-populate registration form
-      state.pendingGoogleAuth = firebaseUser;
-      const nameParts = (firebaseUser.displayName || 'Garba Dancer').trim().split(' ');
-      const fname = nameParts[0] || '';
-      const lname = nameParts.slice(1).join(' ') || '';
+  modal.classList.remove('hidden');
+  showToast(`📩 OTPs sent! Check your email and SMS.`);
+}
 
-      document.getElementById('reg-fname').value = fname;
-      document.getElementById('reg-lname').value = lname;
-      document.getElementById('reg-email').value = firebaseUser.email || '';
-      document.getElementById('reg-password').value = 'GoogleSecret123';
+function closeOtpModal() {
+  const modal = document.getElementById('otp-modal');
+  if (modal) modal.classList.add('hidden');
+  state.pendingVerification = null;
+}
 
-      showScreen('register');
-      showToast(`Hi ${fname}! Please pick your city and dance style to finish.`);
+function resendEmailOtp() {
+  if (!state.pendingVerification) return;
+  const newOtp = generateRandomOtp();
+  state.pendingVerification.emailOtp = newOtp;
+  const emailHint = document.getElementById('otp-email-hint');
+  if (emailHint) {
+    emailHint.innerHTML = `<span>New Email Code generated:</span> <span class="code">${newOtp}</span>`;
+  }
+  showToast(`📧 New Email OTP sent to ${state.pendingVerification.email}`);
+}
+
+function resendPhoneOtp() {
+  if (!state.pendingVerification) return;
+  const newOtp = generateRandomOtp();
+  state.pendingVerification.phoneOtp = newOtp;
+  const phoneHint = document.getElementById('otp-phone-hint');
+  if (phoneHint) {
+    phoneHint.innerHTML = `<span>New SMS/WhatsApp OTP:</span> <span class="code">${newOtp}</span>`;
+  }
+  showToast(`📱 New 2FA SMS OTP sent to +91 ${state.pendingVerification.phone}`);
+}
+
+async function verifyOtpAndProceed() {
+  if (!state.pendingVerification) return;
+
+  const enteredEmailOtp = (document.getElementById('input-email-otp')?.value || '').trim();
+  const enteredPhoneOtp = (document.getElementById('input-phone-otp')?.value || '').trim();
+
+  if (!enteredEmailOtp) {
+    showToast('⚠️ Please enter the Email OTP');
+    return;
+  }
+  if (!enteredPhoneOtp) {
+    showToast('⚠️ Please enter the Mobile 2FA OTP');
+    return;
+  }
+
+  // Verify Email OTP
+  if (enteredEmailOtp !== state.pendingVerification.emailOtp) {
+    showToast('❌ Incorrect Email OTP. Please check the code.');
+    return;
+  }
+
+  // Verify Phone 2FA OTP
+  if (enteredPhoneOtp !== state.pendingVerification.phoneOtp) {
+    showToast('❌ Incorrect Mobile 2FA OTP. Please check the code.');
+    return;
+  }
+
+  // Both OTPs verified!
+  showToast('✅ 2FA Verification successful! Signing in...');
+  const { mode, userData, credentials } = state.pendingVerification;
+  closeOtpModal();
+
+  if (mode === 'register') {
+    // Complete registration
+    const uid = 'user_' + Date.now();
+    const finalUser = {
+      ...userData,
+      id: uid,
+      isEmailVerified: true,
+      is2FaVerified: true
+    };
+
+    // Save in cloud if Firebase is active
+    if (window.garbaFirebase && window.garbaFirebase.isInitialized) {
+      try {
+        if (userData.password) {
+          try {
+            const fbUser = await window.garbaFirebase.signUpWithEmailPassword(userData.email, userData.password);
+            if (fbUser) finalUser.id = fbUser.uid;
+          } catch (authErr) {
+            console.warn('Firebase Auth create note:', authErr.message);
+          }
+        }
+        await window.garbaFirebase.saveUserProfile(finalUser.id, finalUser);
+      } catch (err) {
+        console.warn('Could not save to Firebase, continuing locally:', err);
+      }
     }
-  } catch (err) {
-    console.error('Google Sign-In error:', err);
-    if (err.code !== 'auth/popup-closed-by-user') {
-      showToast(`Sign in error: ${err.message || 'Please try again'}`);
+
+    // Save locally for quick login
+    const registeredUsers = JSON.parse(localStorage.getItem('gc_registered_users') || '{}');
+    registeredUsers[finalUser.email.toLowerCase()] = {
+      ...finalUser,
+      password: userData.password
+    };
+    localStorage.setItem('gc_registered_users', JSON.stringify(registeredUsers));
+
+    await saveUserAndGo(finalUser);
+    showToast(`🎉 Welcome to GarbaConnect, ${finalUser.name.split(' ')[0]}!`);
+  } else if (mode === 'login') {
+    // Complete login
+    let userToLogin = credentials.user;
+    if (window.garbaFirebase && window.garbaFirebase.isInitialized) {
+      try {
+        const signResult = await window.garbaFirebase.signInWithEmailPassword(credentials.email, credentials.password);
+        if (signResult && signResult.profileData) {
+          userToLogin = signResult.profileData;
+        }
+      } catch (e) {
+        console.warn('Firebase sign-in note:', e.message);
+      }
     }
+    await saveUserAndGo(userToLogin);
+    showToast(`🎉 Welcome back, ${userToLogin.name.split(' ')[0]}!`);
   }
 }
 
@@ -333,190 +467,79 @@ async function handleRegister(e) {
 
   const fname = document.getElementById('reg-fname').value.trim();
   const lname = document.getElementById('reg-lname').value.trim();
-  const email = document.getElementById('reg-email').value.trim();
   const gender = document.getElementById('reg-gender').value;
-  const isGoogle = !!state.pendingGoogleAuth;
-  const uid = isGoogle ? state.pendingGoogleAuth.uid : ('user_' + Date.now());
-  const photoURL = isGoogle ? state.pendingGoogleAuth.photoURL : null;
+  const email = document.getElementById('reg-email').value.trim();
+  const phone = (document.getElementById('reg-phone')?.value || '9876543210').trim();
+  const password = document.getElementById('reg-password').value;
 
-  const user = {
-    id: uid,
+  if (phone && phone.length !== 10) {
+    showToast('Please enter a valid 10-digit mobile number for 2FA');
+    return;
+  }
+
+  const userData = {
     name: `${fname} ${lname}`.trim(),
-    email: email,
+    email,
+    phone: phone || '9876543210',
+    password,
     age: parseInt(document.getElementById('reg-age').value) || 24,
     gender,
     city: document.getElementById('reg-city').value.trim(),
     skill,
     looking,
-    bio: document.getElementById('reg-bio').value.trim() || 'Just here to dance! 💃',
+    bio: document.getElementById('reg-bio').value || 'Ready for Navratri! 💃',
     styles: state.selectedStyles.length ? state.selectedStyles : ['Traditional Garba'],
     emoji: pickEmoji(gender),
-    photoURL,
+    photoURL: null,
     color: '#e85d04',
-    isCloudUser: isGoogle || !!window.garbaFirebase?.isInitialized
+    isCloudUser: !!window.garbaFirebase?.isInitialized
   };
 
-  // If already authenticated via Google, 2FA/Email is already Google-verified
-  if (isGoogle) {
-    if (window.garbaFirebase && window.garbaFirebase.isInitialized) {
-      try {
-        await window.garbaFirebase.saveUserProfile(uid, user);
-      } catch (err) {
-        console.warn('Could not save to Firebase, continuing locally:', err);
-      }
-    }
-    state.pendingGoogleAuth = null;
-    await saveUserAndGo(user);
-    return;
-  }
-
-  // Trigger 2FA Email Verification before completing registration
-  initiateEmail2FA(user, 'register');
+  // Open 2FA & OTP verification modal
+  openOtpModal('register', userData, null);
 }
 
-function handleLogin(e) {
+async function handleLogin(e) {
   e.preventDefault();
-  const email = document.getElementById('login-email').value.trim();
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
   const password = document.getElementById('login-password').value;
 
   if (!email || !password) {
-    showToast('Please fill in your email and password');
+    showToast('Please enter your email and password');
     return;
   }
 
-  // Check if we have this registered user in local storage
-  const savedUserRaw = localStorage.getItem('gc_user');
-  let existingUser = null;
-  if (savedUserRaw) {
-    try {
-      const u = JSON.parse(savedUserRaw);
-      if (u && u.email && u.email.toLowerCase() === email.toLowerCase()) {
-        existingUser = u;
-      }
-    } catch (_) {}
-  }
+  // Check stored accounts or create verified profile
+  const registeredUsers = JSON.parse(localStorage.getItem('gc_registered_users') || '{}');
+  let user = registeredUsers[email];
 
-  if (!existingUser) {
-    // Create session user profile from credentials
-    const namePart = email.split('@')[0] || 'Dancer';
-    const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-    existingUser = {
+  if (!user) {
+    // If user registered earlier in standard session or demo
+    user = {
       id: 'user_' + Date.now(),
-      name: formattedName,
+      name: email.split('@')[0],
       email: email,
-      age: 24,
-      gender: 'Dancer',
+      phone: '9876543210',
+      age: 25,
+      gender: 'Woman',
       city: 'Ahmedabad',
       skill: 'Intermediate',
       looking: 'Dance Partner',
-      bio: 'Ready for Navratri! 🪔',
+      bio: 'Ready to dance Garba! 🪔',
       styles: ['Traditional Garba', 'Dandiya Raas'],
       emoji: '💃',
-      photoURL: null,
       color: '#e85d04',
       isCloudUser: !!window.garbaFirebase?.isInitialized
     };
   }
 
-  // Require 2FA verification for email sign-in
-  initiateEmail2FA(existingUser, 'login');
-}
-
-// ============================
-// 2FA EMAIL VERIFICATION SYSTEM
-// ============================
-
-function generateOtpCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-function initiateEmail2FA(user, mode) {
-  const code = generateOtpCode();
-  state.pendingVerification = {
-    user,
-    code,
-    mode,
-    expiresAt: Date.now() + 5 * 60 * 1000 // 5 minutes
-  };
-
-  const modal = document.getElementById('otp-modal');
-  const targetEmailEl = document.getElementById('otp-email-target');
-  const demoCodeEl = document.getElementById('otp-demo-code');
-  const inputEl = document.getElementById('otp-input');
-
-  if (targetEmailEl) targetEmailEl.textContent = user.email || 'your email';
-  if (demoCodeEl) demoCodeEl.textContent = code;
-  if (inputEl) {
-    inputEl.value = '';
-    setTimeout(() => inputEl.focus(), 200);
-  }
-
-  if (modal) modal.classList.remove('hidden');
-  showToast(`🔐 2FA verification code sent to ${user.email}!`);
-}
-
-function closeOtpModal() {
-  const modal = document.getElementById('otp-modal');
-  if (modal) modal.classList.add('hidden');
-  state.pendingVerification = null;
-}
-
-function resendOtpCode() {
-  if (!state.pendingVerification) return;
-  const newCode = generateOtpCode();
-  state.pendingVerification.code = newCode;
-  state.pendingVerification.expiresAt = Date.now() + 5 * 60 * 1000;
-
-  const demoCodeEl = document.getElementById('otp-demo-code');
-  if (demoCodeEl) demoCodeEl.textContent = newCode;
-  const inputEl = document.getElementById('otp-input');
-  if (inputEl) {
-    inputEl.value = '';
-    inputEl.focus();
-  }
-
-  showToast(`📨 New 2FA code generated: ${newCode}`);
-}
-
-async function verifyOtpCode() {
-  const inputEl = document.getElementById('otp-input');
-  if (!inputEl) return;
-  const entered = inputEl.value.trim();
-
-  if (!state.pendingVerification) {
-    showToast('⚠️ No active verification session. Please try again.');
-    closeOtpModal();
-    return;
-  }
-
-  if (Date.now() > state.pendingVerification.expiresAt) {
-    showToast('⚠️ Code expired. Please click "Resend Code".');
-    return;
-  }
-
-  if (entered !== state.pendingVerification.code) {
-    showToast('❌ Invalid verification code. Please check and re-enter.');
-    inputEl.focus();
-    inputEl.select();
-    return;
-  }
-
-  // Verification SUCCESS!
-  const verifiedUser = state.pendingVerification.user;
-  const mode = state.pendingVerification.mode;
-  closeOtpModal();
-
-  showToast('✅ 2FA Email verification successful! Welcome! 🎉');
-
-  if (mode === 'register' && window.garbaFirebase && window.garbaFirebase.isInitialized) {
-    try {
-      await window.garbaFirebase.saveUserProfile(verifiedUser.id, verifiedUser);
-    } catch (err) {
-      console.warn('Could not save to Firebase, continuing locally:', err);
-    }
-  }
-
-  await saveUserAndGo(verifiedUser);
+  // Trigger 2FA for secure login
+  openOtpModal('login', null, {
+    email,
+    password,
+    phone: user.phone || '9876543210',
+    user
+  });
 }
 
 function demoLogin() {

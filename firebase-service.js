@@ -39,23 +39,26 @@ class GarbaFirebaseService {
   }
 
   /**
-   * Triggers Google Sign-In popup
+   * Registers a user with Email & Password in Firebase Auth
    */
-  async signInWithGoogle() {
+  async signUpWithEmailPassword(email, password) {
     if (!this.isInitialized && !this.init()) {
-      throw new Error('Firebase is not configured. Please enter your Firebase config keys.');
+      return null;
     }
+    const userCredential = await this.auth.createUserWithEmailAndPassword(email, password);
+    return userCredential.user;
+  }
 
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.addScope('profile');
-    provider.addScope('email');
-
-    const result = await this.auth.signInWithPopup(provider);
-    const user = result.user;
-
-    // Check if user profile already exists in Firestore
+  /**
+   * Signs in a user with Email & Password in Firebase Auth
+   */
+  async signInWithEmailPassword(email, password) {
+    if (!this.isInitialized && !this.init()) {
+      return null;
+    }
+    const userCredential = await this.auth.signInWithEmailAndPassword(email, password);
+    const user = userCredential.user;
     const userDoc = await this.db.collection('users').doc(user.uid).get();
-    
     return {
       firebaseUser: user,
       profileExists: userDoc.exists,
