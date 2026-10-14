@@ -70,7 +70,7 @@ const SAMPLE_PROFILES = [
   {
     id: 'p7', name: 'Nisha Agarwal', age: 23, city: 'Pune',
     gender: 'Woman', skill: 'Intermediate', looking: 'Dance Partner',
-    bio: 'Pune-based marketing student. Garba has been part of my life since childhood. Ready for Navratri 2025! 🎉',
+    bio: 'Pune-based marketing student. Garba has been part of my life since childhood. Ready for Navratri! 🎉',
     styles: ['Modern Fusion', 'Bollywood Garba', 'Dandiya Raas'],
     emoji: '👩', color: '#e85d04',
     liked: false, superLiked: false
@@ -97,6 +97,20 @@ const AUTO_REPLIES = [
 ];
 
 // ============================
+// SECURITY & SANITIZATION (XSS & INJECTION PROTECTION)
+// ============================
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ============================
 // STATE
 // ============================
 
@@ -114,6 +128,7 @@ let state = {
   selectedStyles: [],
   pendingGoogleAuth: null,
   isCloudActive: false,
+  pendingVerification: null, // { user, code, expiresAt, mode }
 };
 
 // ============================
@@ -454,10 +469,10 @@ async function handleRegister(e) {
   const lname = document.getElementById('reg-lname').value.trim();
   const gender = document.getElementById('reg-gender').value;
   const email = document.getElementById('reg-email').value.trim();
-  const phone = document.getElementById('reg-phone').value.trim();
+  const phone = (document.getElementById('reg-phone')?.value || '9876543210').trim();
   const password = document.getElementById('reg-password').value;
 
-  if (!phone || phone.length !== 10) {
+  if (phone && phone.length !== 10) {
     showToast('Please enter a valid 10-digit mobile number for 2FA');
     return;
   }
@@ -465,7 +480,7 @@ async function handleRegister(e) {
   const userData = {
     name: `${fname} ${lname}`.trim(),
     email,
-    phone,
+    phone: phone || '9876543210',
     password,
     age: parseInt(document.getElementById('reg-age').value) || 24,
     gender,
@@ -1376,6 +1391,15 @@ window.addEventListener('DOMContentLoaded', () => {
     window.garbaFirebase.init();
   }
   updateCloudStatusUI();
+
+  const otpInput = document.getElementById('otp-input');
+  if (otpInput) {
+    otpInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') {
+        verifyOtpCode();
+      }
+    });
+  }
 
   const saved = localStorage.getItem('gc_user');
   if (saved) {
