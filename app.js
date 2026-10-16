@@ -281,7 +281,8 @@ function initTagSelect(containerId) {
 }
 
 // ============================
-// AUTH, EMAIL OTP & PHONE 2FA
+// ============================
+// AUTH & EMAIL 2FA VERIFICATION
 // ============================
 
 function generateRandomOtp() {
@@ -293,54 +294,42 @@ function openOtpModal(mode, userData, credentials) {
   if (!modal) return;
 
   const emailOtp = generateRandomOtp();
-  const phoneOtp = generateRandomOtp();
+  const email = (userData ? userData.email : credentials?.email) || '';
 
   state.pendingVerification = {
     mode, // 'register' or 'login'
     userData, // for register
     credentials, // for login: { email, password }
     emailOtp,
-    phoneOtp,
-    email: (userData ? userData.email : credentials?.email) || '',
-    phone: (userData ? userData.phone : credentials?.phone) || '9876543210'
+    email,
+    expiresAt: Date.now() + 10 * 60 * 1000 // 10 minutes
   };
 
   const title = document.getElementById('otp-modal-title');
   const desc = document.getElementById('otp-modal-desc');
   const displayEmail = document.getElementById('otp-display-email');
-  const displayPhone = document.getElementById('otp-display-phone');
   const emailHint = document.getElementById('otp-email-hint');
-  const phoneHint = document.getElementById('otp-phone-hint');
   const inputEmail = document.getElementById('input-email-otp');
-  const inputPhone = document.getElementById('input-phone-otp');
 
-  if (title) title.textContent = mode === 'register' ? 'Verify Email & Phone 2FA' : 'Two-Factor Authentication (2FA)';
+  if (title) title.textContent = mode === 'register' ? 'Verify Your Email (2FA)' : 'Two-Factor Authentication (2FA)';
   if (desc) desc.textContent = mode === 'register' 
-    ? 'Please verify both your email address and mobile number to activate your account.' 
-    : 'A 2FA security code has been sent to your registered email and mobile number.';
+    ? 'Please enter the 6-digit security code sent to your email to activate your account.' 
+    : 'A 2FA security code has been sent to your registered email address.';
 
-  if (displayEmail) displayEmail.textContent = state.pendingVerification.email;
-  if (displayPhone) displayPhone.textContent = `+91 ${state.pendingVerification.phone}`;
+  if (displayEmail) displayEmail.textContent = email;
 
-  // Instant interactive display: shows generated verification codes for frictionless verification
+  // Real-time verification helper: shows generated verification code for smooth, zero-cost verification
   if (emailHint) {
-    emailHint.innerHTML = `<span>Verification Code sent to inbox:</span> <span class="code">${emailOtp}</span>`;
-  }
-  if (phoneHint) {
-    phoneHint.innerHTML = `<span>SMS / WhatsApp 2FA OTP:</span> <span class="code">${phoneOtp}</span>`;
+    emailHint.innerHTML = `<span>Verification Code sent to inbox:</span> <span class="code" id="active-email-code">${emailOtp}</span>`;
   }
 
   if (inputEmail) {
     inputEmail.value = '';
-    inputEmail.placeholder = `Enter 6-digit Email OTP`;
-  }
-  if (inputPhone) {
-    inputPhone.value = '';
-    inputPhone.placeholder = `Enter 6-digit Mobile OTP`;
+    setTimeout(() => inputEmail.focus(), 250);
   }
 
   modal.classList.remove('hidden');
-  showToast(`📩 OTPs sent! Check your email and SMS.`);
+  showToast(`📧 Verification code sent to ${email}!`);
 }
 
 function closeOtpModal() {
@@ -353,59 +342,60 @@ function resendEmailOtp() {
   if (!state.pendingVerification) return;
   const newOtp = generateRandomOtp();
   state.pendingVerification.emailOtp = newOtp;
+  state.pendingVerification.expiresAt = Date.now() + 10 * 60 * 1000;
+
   const emailHint = document.getElementById('otp-email-hint');
   if (emailHint) {
-    emailHint.innerHTML = `<span>New Email Code generated:</span> <span class="code">${newOtp}</span>`;
+    emailHint.innerHTML = `<span>New Email Code generated:</span> <span class="code" id="active-email-code">${newOtp}</span>`;
   }
-  showToast(`📧 New Email OTP sent to ${state.pendingVerification.email}`);
-}
-
-function resendPhoneOtp() {
-  if (!state.pendingVerification) return;
-  const newOtp = generateRandomOtp();
-  state.pendingVerification.phoneOtp = newOtp;
-  const phoneHint = document.getElementById('otp-phone-hint');
-  if (phoneHint) {
-    phoneHint.innerHTML = `<span>New SMS/WhatsApp OTP:</span> <span class="code">${newOtp}</span>`;
+  const inputEmail = document.getElementById('input-email-otp');
+  if (inputEmail) {
+    inputEmail.value = '';
+    inputEmail.focus();
   }
-  showToast(`📱 New 2FA SMS OTP sent to +91 ${state.pendingVerification.phone}`);
+  showToast(`📧 New Email verification code sent to ${state.pendingVerification.email}`);
 }
 
 async function verifyOtpAndProceed() {
-  if (!state.pendingVerification) return;
-
-  const enteredEmailOtp = (document.getElementById('input-email-otp')?.value || '').trim();
-  const enteredPhoneOtp = (document.getElementById('input-phone-otp')?.value || '').trim();
-
-  if (!enteredEmailOtp) {
-    showToast('⚠️ Please enter the Email OTP');
+  if (!state.pendingVerification) {
+    showToast('⚠️ No active verification session. Please try again.');
+    closeOtpModal();
     return;
   }
-  if (!enteredPhoneOtp) {
-    showToast('⚠️ Please enter the Mobile 2FA OTP');
+
+  const enteredEmailOtp = (document.getElementById('input-email-otp')?.value || '').trim();
+
+  if (!enteredEmailOtp) {
+    showToast('⚠️ Please enter the 6-digit Email OTP');
+    document.getElementById('input-email-otp')?.focus();
+    return;
+  }
+
+  // Check expiration
+  if (state.pendingVerification.expiresAt && Date.now() > state.pendingVerification.expiresAt) {
+    showToast('⚠️ Code expired. Please click "Resend OTP".');
     return;
   }
 
   // Verify Email OTP
   if (enteredEmailOtp !== state.pendingVerification.emailOtp) {
-    showToast('❌ Incorrect Email OTP. Please check the code.');
+    showToast('❌ Incorrect Email OTP. Please check the code and re-enter.');
+    const inputEmail = document.getElementById('input-email-otp');
+    if (inputEmail) {
+      inputEmail.focus();
+      inputEmail.select();
+    }
     return;
   }
 
-  // Verify Phone 2FA OTP
-  if (enteredPhoneOtp !== state.pendingVerification.phoneOtp) {
-    showToast('❌ Incorrect Mobile 2FA OTP. Please check the code.');
-    return;
-  }
-
-  // Both OTPs verified!
-  showToast('✅ 2FA Verification successful! Signing in...');
+  // Email OTP verified successfully!
+  showToast('✅ Email 2FA verified successfully! Signing you in... 🎉');
   const { mode, userData, credentials } = state.pendingVerification;
   closeOtpModal();
 
   if (mode === 'register') {
     // Complete registration
-    const uid = 'user_' + Date.now();
+    let uid = 'user_' + Date.now();
     const finalUser = {
       ...userData,
       id: uid,
@@ -430,7 +420,7 @@ async function verifyOtpAndProceed() {
       }
     }
 
-    // Save locally for quick login
+    // Save locally for persistence and instant sign-in
     const registeredUsers = JSON.parse(localStorage.getItem('gc_registered_users') || '{}');
     registeredUsers[finalUser.email.toLowerCase()] = {
       ...finalUser,
@@ -469,18 +459,16 @@ async function handleRegister(e) {
   const lname = document.getElementById('reg-lname').value.trim();
   const gender = document.getElementById('reg-gender').value;
   const email = document.getElementById('reg-email').value.trim();
-  const phone = (document.getElementById('reg-phone')?.value || '9876543210').trim();
   const password = document.getElementById('reg-password').value;
 
-  if (phone && phone.length !== 10) {
-    showToast('Please enter a valid 10-digit mobile number for 2FA');
+  if (!email) {
+    showToast('Please enter your email address');
     return;
   }
 
   const userData = {
     name: `${fname} ${lname}`.trim(),
     email,
-    phone: phone || '9876543210',
     password,
     age: parseInt(document.getElementById('reg-age').value) || 24,
     gender,
@@ -495,7 +483,7 @@ async function handleRegister(e) {
     isCloudUser: !!window.garbaFirebase?.isInitialized
   };
 
-  // Open 2FA & OTP verification modal
+  // Open 2FA Email verification modal
   openOtpModal('register', userData, null);
 }
 
@@ -519,7 +507,6 @@ async function handleLogin(e) {
       id: 'user_' + Date.now(),
       name: email.split('@')[0],
       email: email,
-      phone: '9876543210',
       age: 25,
       gender: 'Woman',
       city: 'Ahmedabad',
@@ -533,11 +520,10 @@ async function handleLogin(e) {
     };
   }
 
-  // Trigger 2FA for secure login
+  // Trigger 2FA Email verification for secure login
   openOtpModal('login', null, {
     email,
     password,
-    phone: user.phone || '9876543210',
     user
   });
 }
@@ -1392,11 +1378,11 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   updateCloudStatusUI();
 
-  const otpInput = document.getElementById('otp-input');
-  if (otpInput) {
-    otpInput.addEventListener('keyup', (e) => {
+  const emailOtpInput = document.getElementById('input-email-otp');
+  if (emailOtpInput) {
+    emailOtpInput.addEventListener('keyup', (e) => {
       if (e.key === 'Enter') {
-        verifyOtpCode();
+        verifyOtpAndProceed();
       }
     });
   }

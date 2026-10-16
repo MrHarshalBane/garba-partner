@@ -11,8 +11,8 @@
 - 🔥 **Swipe to match** – Left/right swipe, button clicks, or keyboard arrows
 - ⭐ **Super Like** – Show extra interest
 - 🌐 **Multi-User Cloud Mode** – Connect free Firebase for real user matching with friends!
-- 🔐 **Secure Email & Password** – Simplified registration without third-party OAuth popup friction
-- 🛡️ **2FA & OTP Verification** – Mandatory Email OTP verification + SMS/WhatsApp Mobile 2FA confirmation
+- 🔐 **Secure Email & Password** – Reliable account registration and authentication
+- 🛡️ **2FA & Email OTP Verification** – Mandatory 6-digit Email security verification without costly SMS fees
 - 💬 **Live Real-time Chat** – Chat with matches instantly via Cloud Firestore
 - 👤 **Custom Profiles** – City, age, skill level, looking-for, and favorite Garba styles
 - 🎊 **Match Celebration** – Animated confetti when two dancers like each other
