@@ -47,5 +47,5 @@ The service is provided "AS IS" and "AS AVAILABLE" without warranties of any kin
 
 ## 7. Governing Law & Contact
 These Terms shall be governed by and construed in accordance with applicable laws. For any legal inquiries or abuse reporting:
-- **Contact:** harshalbane@gmail.com
+- **Contact:** harshalbanework@gmail.com
 - **Subject:** GarbaConnect Terms Inquiry

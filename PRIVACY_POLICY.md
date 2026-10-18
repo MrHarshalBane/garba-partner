@@ -4,7 +4,7 @@
 **Effective Date:** October 18, 2026  
 **Developer:** Harshal Bane ("GarbaConnect", "we", "us", or "our")  
 **Application:** GarbaConnect (Android Application: `com.harshalbane.garbaconnect`)  
-**Contact:** harshalbane@gmail.com
+**Contact:** harshalbanework@gmail.com
 
 ---
 
@@ -59,7 +59,7 @@ Google Play requires apps that allow account creation to provide a clear, access
 6. Your account, profile document, swipes, match connections, chat history, and Firebase Auth credentials will be permanently erased immediately.
 
 ### Web-Based Account Deletion Request:
-Users may also request complete data deletion by emailing **harshalbane@gmail.com** with the subject line *"GarbaConnect Account Deletion Request"* from their registered email address. We will verify ownership and permanently delete all records within 48 business hours.
+Users may also request complete data deletion by emailing **harshalbanework@gmail.com** with the subject line *"GarbaConnect Account Deletion Request"* from their registered email address. We will verify ownership and permanently delete all records within 48 business hours.
 
 ---
 
@@ -85,5 +85,5 @@ We may periodically update our Privacy Policy to reflect app enhancements or reg
 ## 9. Contact Us
 For questions or concerns regarding this Privacy Policy or data privacy rights:
 - **Developer:** Harshal Bane
-- **Email:** harshalbane@gmail.com
+- **Email:** harshalbanework@gmail.com
 - **Website:** https://mrharshalbane.github.io/garba-partner/
