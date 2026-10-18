@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0f" />
   <title>GarbaConnect – Find Your Garba Partner</title>
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
@@ -55,7 +56,7 @@
     <div class="auth-header">
       <span class="logo-icon sm">🪔</span>
       <h2>Create Your Profile</h2>
-      <p>Sign up with Email 2FA verification</p>
+      <p>Sign up to find your Garba partner</p>
     </div>
     <form class="auth-form" onsubmit="handleRegister(event)">
       <div class="form-row">
@@ -69,7 +70,7 @@
         </div>
       </div>
       <div class="form-group">
-        <label>Email Address (OTP Verified) *</label>
+        <label>Email Address *</label>
         <input type="email" id="reg-email" placeholder="priya@email.com" required />
       </div>
       <div class="form-group">
@@ -117,7 +118,7 @@
         <label>Short Bio</label>
         <textarea id="reg-bio" placeholder="Describe yourself – your dance style, favorite Garba events, what you're looking for..." rows="3"></textarea>
       </div>
-      <button type="submit" class="btn btn-primary btn-full">Continue to Verification 🔐</button>
+      <button type="submit" class="btn btn-primary btn-full">Create Profile ✓</button>
       <p class="auth-switch">Already have an account? <a onclick="showScreen('login')">Sign In</a></p>
     </form>
   </div>
@@ -141,7 +142,7 @@
         <label>Password</label>
         <input type="password" id="login-password" placeholder="Your password" required />
       </div>
-      <button type="submit" class="btn btn-primary btn-full">Sign In with 2FA 🛡️</button>
+      <button type="submit" class="btn btn-primary btn-full">Sign In ✓</button>
       <div class="auth-divider">or explore</div>
       <button type="button" class="btn btn-outline btn-full" onclick="demoLogin()">Try Demo (Guest Mode)</button>
       <p class="auth-switch">New here? <a onclick="showScreen('register')">Create Account</a></p>
@@ -271,8 +272,10 @@
           <button class="cloud-status-pill" id="profile-cloud-btn" onclick="openFirebaseConfigModal()" style="margin-bottom:1rem;display:inline-flex;">
             <span class="status-dot"></span> <span id="profile-cloud-status">Database Settings</span>
           </button>
-          <br />
-          <button class="btn btn-outline" onclick="logout()">Sign Out</button>
+          <div style="display:flex;gap:0.75rem;justify-content:center;width:100%;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="logout()">Sign Out</button>
+            <button class="btn btn-danger" id="btn-delete-account" onclick="handleDeleteAccount()" style="background:#dc2626;color:#fff;border:none;padding:0.75rem 1.2rem;border-radius:12px;font-weight:600;cursor:pointer;">Delete Account & Data</button>
+          </div>
         </div>
       </div>
     </div>

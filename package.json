@@ -1,0 +1,30 @@
+{
+  "name": "garbaconnect",
+  "version": "1.0.2",
+  "description": "GarbaConnect - Find Your Garba Partner Android Native Mobile Application",
+  "main": "app.js",
+  "scripts": {
+    "build": "echo \"Web assets ready in root directory\"",
+    "cap:sync": "cap sync android",
+    "cap:open": "cap open android",
+    "cap:build": "cap build android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/app": "^6.0.2",
+    "@capacitor/cli": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/keyboard": "^6.0.3",
+    "@capacitor/splash-screen": "^6.0.3",
+    "@capacitor/status-bar": "^6.0.2"
+  },
+  "keywords": [
+    "garba",
+    "navratri",
+    "android",
+    "capacitor",
+    "mobile-app"
+  ],
+  "author": "Harshal Bane",
+  "license": "MIT"
+}

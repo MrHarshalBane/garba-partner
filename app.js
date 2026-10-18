@@ -483,8 +483,42 @@ async function handleRegister(e) {
     isCloudUser: !!window.garbaFirebase?.isInitialized
   };
 
-  // Open 2FA Email verification modal
-  openOtpModal('register', userData, null);
+  showToast('Creating your profile... 🎉');
+
+  let uid = 'user_' + Date.now();
+  const finalUser = {
+    ...userData,
+    id: uid,
+    isEmailVerified: true
+  };
+
+  // 1. Cloud registration if Firebase is active
+  if (window.garbaFirebase && window.garbaFirebase.isInitialized) {
+    try {
+      if (userData.password) {
+        try {
+          const fbUser = await window.garbaFirebase.signUpWithEmailPassword(userData.email, userData.password);
+          if (fbUser) finalUser.id = fbUser.uid;
+        } catch (authErr) {
+          console.warn('Firebase Auth signup note:', authErr.message);
+        }
+      }
+      await window.garbaFirebase.saveUserProfile(finalUser.id, finalUser);
+    } catch (err) {
+      console.warn('Could not save to Firebase, continuing locally:', err);
+    }
+  }
+
+  // 2. Save locally for persistence and instant sign-in
+  const registeredUsers = JSON.parse(localStorage.getItem('gc_registered_users') || '{}');
+  registeredUsers[finalUser.email.toLowerCase()] = {
+    ...finalUser,
+    password: userData.password
+  };
+  localStorage.setItem('gc_registered_users', JSON.stringify(registeredUsers));
+
+  await saveUserAndGo(finalUser);
+  showToast(`🎉 Welcome to GarbaConnect, ${finalUser.name.split(' ')[0]}!`);
 }
 
 async function handleLogin(e) {
@@ -520,12 +554,22 @@ async function handleLogin(e) {
     };
   }
 
-  // Trigger 2FA Email verification for secure login
-  openOtpModal('login', null, {
-    email,
-    password,
-    user
-  });
+  showToast('Signing you in... 🪔');
+
+  let userToLogin = user;
+  if (window.garbaFirebase && window.garbaFirebase.isInitialized) {
+    try {
+      const signResult = await window.garbaFirebase.signInWithEmailPassword(email, password);
+      if (signResult && signResult.profileData) {
+        userToLogin = signResult.profileData;
+      }
+    } catch (e) {
+      console.warn('Firebase sign-in note:', e.message);
+    }
+  }
+
+  await saveUserAndGo(userToLogin);
+  showToast(`🎉 Welcome back, ${userToLogin.name.split(' ')[0]}!`);
 }
 
 function demoLogin() {
@@ -742,19 +786,39 @@ function createCard(profile) {
 
   const nameRow = document.createElement('div');
   nameRow.className = 'card-name-row';
-  nameRow.innerHTML = `<span class="card-name">${profile.name.split(' ')[0]}</span><span class="card-age">${profile.age}</span>`;
+  const nameSpan = document.createElement('span');
+  nameSpan.className = 'card-name';
+  nameSpan.textContent = profile.name.split(' ')[0];
+  const ageSpan = document.createElement('span');
+  ageSpan.className = 'card-age';
+  ageSpan.textContent = profile.age;
+  nameRow.appendChild(nameSpan);
+  nameRow.appendChild(ageSpan);
 
   const city = document.createElement('div');
   city.className = 'card-city';
-  city.innerHTML = `📍 ${profile.city}${profile.isCloudUser ? '<span class="card-cloud-badge">🟢 Real Dancer</span>' : ''}`;
+  city.textContent = `📍 ${profile.city} `;
+  if (profile.isCloudUser) {
+    const cloudBadge = document.createElement('span');
+    cloudBadge.className = 'card-cloud-badge';
+    cloudBadge.textContent = '🟢 Real Dancer';
+    city.appendChild(cloudBadge);
+  }
 
   const tags = document.createElement('div');
   tags.className = 'card-tags';
-  tags.innerHTML = `<span class="card-tag skill">🎵 ${profile.skill}</span><span class="card-tag looking">🎯 ${profile.looking}</span>`;
+  const tagSkill = document.createElement('span');
+  tagSkill.className = 'card-tag skill';
+  tagSkill.textContent = `🎵 ${profile.skill}`;
+  const tagLooking = document.createElement('span');
+  tagLooking.className = 'card-tag looking';
+  tagLooking.textContent = `🎯 ${profile.looking}`;
+  tags.appendChild(tagSkill);
+  tags.appendChild(tagLooking);
 
   const infoBtn = document.createElement('button');
   infoBtn.className = 'card-info-btn';
-  infoBtn.innerHTML = 'ℹ️';
+  infoBtn.textContent = 'ℹ️';
   infoBtn.onclick = (e) => { e.stopPropagation(); openProfileModal(profile); };
 
   info.appendChild(nameRow);
@@ -1089,16 +1153,32 @@ function renderMatches() {
       ? `<img src="${profile.photoURL}" alt="${profile.name}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);" />`
       : `<div class="match-item-avatar">${profile.emoji || '💃'}</div>`;
 
-    item.innerHTML = `
-      ${avatarHtml}
-      <div class="match-item-info">
-        <div class="match-item-name">${profile.name} ${profile.isCloudMatch ? '<span style="font-size:0.7rem;color:#10b981;">● Online</span>' : ''}</div>
-        <div class="match-item-msg ${!lastMsg ? '' : 'unread'}">
-          ${lastMsg ? lastMsg.text : '🎊 You matched! Say hello!'}
-        </div>
-      </div>
-      <div class="match-item-time">${lastMsg ? formatTime(lastMsg.time) : 'Just now'}</div>
-    `;
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'match-item-info';
+    
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'match-item-name';
+    nameDiv.textContent = profile.name + ' ';
+    if (profile.isCloudMatch) {
+      const onlineSpan = document.createElement('span');
+      onlineSpan.style.cssText = 'font-size:0.7rem;color:#10b981;';
+      onlineSpan.textContent = '● Online';
+      nameDiv.appendChild(onlineSpan);
+    }
+
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `match-item-msg ${!lastMsg ? '' : 'unread'}`;
+    msgDiv.textContent = lastMsg ? lastMsg.text : '🎊 You matched! Say hello!';
+
+    infoDiv.appendChild(nameDiv);
+    infoDiv.appendChild(msgDiv);
+
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'match-item-time';
+    timeDiv.textContent = lastMsg ? formatTime(lastMsg.time) : 'Just now';
+
+    item.appendChild(infoDiv);
+    item.appendChild(timeDiv);
 
     list.appendChild(item);
   });
@@ -1109,9 +1189,9 @@ function openChat(profile) {
 
   const headerAvatarEl = document.getElementById('chat-avatar');
   if (profile.photoURL) {
-    headerAvatarEl.outerHTML = `<img id="chat-avatar" src="${profile.photoURL}" alt="${profile.name}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`;
+    headerAvatarEl.outerHTML = `<img id="chat-avatar" src="${escapeHtml(profile.photoURL)}" alt="${escapeHtml(profile.name)}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;" />`;
   } else {
-    headerAvatarEl.outerHTML = `<div id="chat-avatar" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,${profile.color || '#e85d04'},#7b2d8b);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">${profile.emoji || '💃'}</div>`;
+    headerAvatarEl.outerHTML = `<div id="chat-avatar" style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,${escapeHtml(profile.color || '#e85d04')},#7b2d8b);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">${escapeHtml(profile.emoji || '💃')}</div>`;
   }
 
   document.getElementById('chat-name').textContent = profile.name;
@@ -1138,26 +1218,50 @@ function renderChatMessages(profile) {
   const container = document.getElementById('chat-messages');
   container.innerHTML = '';
 
-  const avatarDisplay = profile.photoURL 
-    ? `<img src="${profile.photoURL}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);" />`
-    : `<div class="match-intro-av">${profile.emoji || '💃'}</div>`;
-
   // Match intro
   const intro = document.createElement('div');
   intro.className = 'chat-match-intro';
-  intro.innerHTML = `
-    ${avatarDisplay}
-    <strong>${profile.name}</strong>
-    <p style="font-size:0.8rem;margin-top:0.3rem">${profile.city} • ${profile.skill} • ${profile.looking}</p>
-    <p style="font-size:0.85rem;margin-top:0.8rem;color:var(--text2)">${profile.bio || 'Ready for Garba!'}</p>
-  `;
+  
+  if (profile.photoURL) {
+    const avImg = document.createElement('img');
+    avImg.src = profile.photoURL;
+    avImg.style.cssText = 'width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);';
+    intro.appendChild(avImg);
+  } else {
+    const avDiv = document.createElement('div');
+    avDiv.className = 'match-intro-av';
+    avDiv.textContent = profile.emoji || '💃';
+    intro.appendChild(avDiv);
+  }
+
+  const nameStrong = document.createElement('strong');
+  nameStrong.textContent = profile.name;
+  intro.appendChild(nameStrong);
+
+  const metaP = document.createElement('p');
+  metaP.style.cssText = 'font-size:0.8rem;margin-top:0.3rem';
+  metaP.textContent = `${profile.city || ''} • ${profile.skill || ''} • ${profile.looking || ''}`;
+  intro.appendChild(metaP);
+
+  const bioP = document.createElement('p');
+  bioP.style.cssText = 'font-size:0.85rem;margin-top:0.8rem;color:var(--text2)';
+  bioP.textContent = profile.bio || 'Ready for Garba!';
+  intro.appendChild(bioP);
+
   container.appendChild(intro);
 
   const msgs = state.messages[profile.id] || [];
   msgs.forEach(msg => {
     const el = document.createElement('div');
     el.className = `chat-msg ${msg.sent ? 'sent' : 'received'}`;
-    el.innerHTML = `${msg.text}<span class="chat-msg-time">${formatTime(msg.time)}</span>`;
+    
+    const textNode = document.createTextNode(msg.text);
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'chat-msg-time';
+    timeSpan.textContent = formatTime(msg.time);
+    
+    el.appendChild(textNode);
+    el.appendChild(timeSpan);
     container.appendChild(el);
   });
 
@@ -1285,17 +1389,27 @@ function openProfileModal(profile) {
   document.getElementById('modal-city').textContent = `📍 ${profile.city} • ${profile.age} years`;
 
   const tags = document.getElementById('modal-tags');
-  tags.innerHTML = `
-    <span class="card-tag skill">🎵 ${profile.skill}</span>
-    <span class="card-tag looking">🎯 ${profile.looking}</span>
-  `;
+  tags.innerHTML = '';
+  const skillTag = document.createElement('span');
+  skillTag.className = 'card-tag skill';
+  skillTag.textContent = `🎵 ${profile.skill || ''}`;
+  const lookingTag = document.createElement('span');
+  lookingTag.className = 'card-tag looking';
+  lookingTag.textContent = `🎯 ${profile.looking || ''}`;
+  tags.appendChild(skillTag);
+  tags.appendChild(lookingTag);
 
-  document.getElementById('modal-bio').textContent = profile.bio;
+  document.getElementById('modal-bio').textContent = profile.bio || '';
 
   const stylesEl = document.getElementById('modal-styles');
-  stylesEl.innerHTML = profile.styles.map(s =>
-    `<span class="tag active" style="cursor:default">${s}</span>`
-  ).join('');
+  stylesEl.innerHTML = '';
+  (profile.styles || []).forEach(s => {
+    const sTag = document.createElement('span');
+    sTag.className = 'tag active';
+    sTag.style.cursor = 'default';
+    sTag.textContent = s;
+    stylesEl.appendChild(sTag);
+  });
 
   modal.classList.remove('hidden');
 }
@@ -1365,12 +1479,137 @@ document.addEventListener('keydown', (e) => {
 });
 
 // ============================
+// ACCOUNT DELETION (Google Play Policy Compliance)
+// ============================
+async function handleDeleteAccount() {
+  if (!state.user) return;
+  const confirmed = confirm(
+    "⚠️ PERMANENT ACCOUNT DELETION\n\nAre you sure you want to delete your GarbaConnect account?\n\nThis will permanently erase your profile, photos, matches, chat messages, and authentication records from both this device and our servers. This action cannot be undone."
+  );
+  if (!confirmed) return;
+
+  const doubleConfirm = prompt("Please type 'DELETE' to confirm complete data deletion:");
+  if (doubleConfirm !== 'DELETE') {
+    showToast('Account deletion cancelled.');
+    return;
+  }
+
+  showToast('Deleting account and wiping data...');
+
+  try {
+    if (window.garbaFirebase && state.user.id) {
+      await window.garbaFirebase.deleteAccountAndData(state.user.id);
+    }
+  } catch (err) {
+    console.warn('Server account wipe note:', err);
+  }
+
+  // Clear local storage and state
+  localStorage.removeItem('gc_user');
+  localStorage.removeItem('gc_state');
+  localStorage.removeItem('gc_registered_users');
+  state = {
+    user: null, profiles: [], currentCardIndex: 0,
+    matches: [], messages: {}, stats: { likes: 0, matches: 0, msgs: 0 },
+    activeChat: null, pendingMatchProfile: null,
+    selectedSkill: '', selectedLooking: '', selectedStyles: [],
+    pendingGoogleAuth: null, isCloudActive: false
+  };
+
+  showToast('✅ Account and data successfully erased.');
+  setTimeout(() => {
+    showScreen('splash');
+  }, 800);
+}
+
+// ============================
+// HARDWARE BACK BUTTON & NATIVE INTEGRATION (Capacitor)
+// ============================
+let lastBackPressTime = 0;
+function setupNativeListeners() {
+  // Global Network Online/Offline Indicators
+  window.addEventListener('offline', () => {
+    showToast('⚠️ Network connection lost. Operating in offline mode.');
+  });
+  window.addEventListener('online', () => {
+    showToast('🌐 Network reconnected!');
+    if (window.garbaFirebase && !window.garbaFirebase.isInitialized) {
+      window.garbaFirebase.init();
+      updateCloudStatusUI();
+    }
+  });
+
+  // Capacitor App Plugin for Android Hardware Back Button
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+    window.Capacitor.Plugins.App.addListener('backButton', ({ canGoBack }) => {
+      // 1. Check if any modal is open
+      const profileModal = document.getElementById('profile-modal');
+      const firebaseModal = document.getElementById('firebase-modal');
+      const otpModal = document.getElementById('otp-modal');
+      const matchPopup = document.getElementById('match-popup');
+
+      if (profileModal && !profileModal.classList.contains('hidden')) {
+        closeProfileModal();
+        return;
+      }
+      if (firebaseModal && !firebaseModal.classList.contains('hidden')) {
+        closeFirebaseConfigModal();
+        return;
+      }
+      if (otpModal && !otpModal.classList.contains('hidden')) {
+        closeOtpModal();
+        return;
+      }
+      if (matchPopup && !matchPopup.classList.contains('hidden')) {
+        closeMatchPopup();
+        return;
+      }
+
+      // 2. Check if active in chat window
+      const chatWindow = document.getElementById('chat-window');
+      if (chatWindow && !chatWindow.classList.contains('hidden')) {
+        closeChatWindow();
+        return;
+      }
+
+      // 3. Check if in sub-screens like register or login
+      if (document.getElementById('register')?.classList.contains('active') ||
+          document.getElementById('login')?.classList.contains('active')) {
+        showScreen('splash');
+        return;
+      }
+
+      // 4. If in app, check active tab
+      if (document.getElementById('app')?.classList.contains('active')) {
+        const activeTab = document.querySelector('.tab.active');
+        if (activeTab && activeTab.id !== 'tab-swipe') {
+          showTab('swipe');
+          return;
+        }
+      }
+
+      // 5. Double tap to exit application
+      const now = Date.now();
+      if (now - lastBackPressTime < 2000) {
+        window.Capacitor.Plugins.App.exitApp();
+      } else {
+        lastBackPressTime = now;
+        showToast('Press back again to exit GarbaConnect');
+      }
+    });
+  }
+}
+
+// ============================
 // AUTO-LOGIN (if user exists)
 // ============================
 window.addEventListener('DOMContentLoaded', () => {
   initSkillBtns('reg-skill', 'skill');
   initSkillBtns('reg-looking', 'looking');
   initTagSelect('reg-styles');
+
+  // Initialize Native Listeners
+  setupNativeListeners();
 
   // Initialize Firebase if configured
   if (window.garbaFirebase) {
@@ -1400,4 +1639,5 @@ window.addEventListener('DOMContentLoaded', () => {
     showScreen('splash');
   }
 });
+
 

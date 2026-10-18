@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GarbaConnect</string>
+    <string name="title_activity_main">GarbaConnect</string>
+    <string name="package_name">com.harshalbane.garbaconnect</string>
+    <string name="custom_url_scheme">com.harshalbane.garbaconnect</string>
+</resources>

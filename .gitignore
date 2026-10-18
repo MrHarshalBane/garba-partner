@@ -1,0 +1,15 @@
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+*.jks
+*.keystore
+release.jks
+android/app/release.jks
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/captures/
+.idea/
+*.iml
