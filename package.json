@@ -1,6 +1,6 @@
 {
   "name": "garbaconnect",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "GarbaConnect - Find Your Garba Partner Android Native Mobile Application",
   "main": "app.js",
   "scripts": {
