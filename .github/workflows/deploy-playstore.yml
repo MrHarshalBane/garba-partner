@@ -72,6 +72,9 @@ jobs:
           retention-days: 14
 
       - name: Deploy to Google Play Console (Internal Track)
+        if: env.PLAY_CONFIG_EXISTS != ''
+        env:
+          PLAY_CONFIG_EXISTS: ${{ secrets.PLAY_CONFIG_JSON }}
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_CONFIG_JSON }}
