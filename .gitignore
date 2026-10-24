@@ -13,3 +13,4 @@ android/local.properties
 android/captures/
 .idea/
 *.iml
+keystore_base64.txt

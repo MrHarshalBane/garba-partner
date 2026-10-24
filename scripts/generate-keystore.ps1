@@ -22,6 +22,12 @@ if (Test-Path $KeystorePath) {
 Write-Host "Generating secure production RSA 2048-bit release keystore..."
 
 $keytoolCmd = "keytool"
+if (-not (Get-Command keytool -ErrorAction SilentlyContinue)) {
+    $foundKeytool = Get-ChildItem "C:\Program Files\Java" -Recurse -Filter "keytool.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+    if ($foundKeytool) {
+        $keytoolCmd = $foundKeytool
+    }
+}
 $keytoolArgs = @(
     "-genkeypair",
     "-v",

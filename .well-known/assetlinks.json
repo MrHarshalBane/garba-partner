@@ -1,0 +1,12 @@
+﻿[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.harshalbane.garbaconnect",
+      "sha256_cert_fingerprints": [
+        "65:CB:69:0B:73:CC:4C:95:A4:F8:F5:A3:E3:C3:1E:EA:2C:76:E3:C7:D8:FD:08:B1:08:AD:F2:7B:DD:CB:CE:EF"
+      ]
+    }
+  }
+]
